@@ -11,6 +11,8 @@
     <script src="https://unpkg.com/htm@2.2.1/dist/htm.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/react@17.0.1/umd/react.production.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/react-dom@17.0.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/deepmerge@4.2.2/dist/umd.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl-fast.min.js" crossorigin="anonymous"></script>
 
     <!-- Google font file. If you want you can change. -->
     <link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,900" rel="stylesheet">
@@ -39,8 +41,6 @@
     <script src="plugins/turbo-slider/turbo.min.js"></script>
     <script src="js/global.script.js"></script>
 
-    <script type="module" src="/state.js"></script>
-
     <style>
     </style>
   </head>
@@ -49,6 +49,7 @@
     <div id="app"></div>
 
     <script type="module">
+      import { setInitialState, buildInitialState, wireUpGlobalState } from "./state.js"
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
 
@@ -236,6 +237,9 @@
       }
 
       function Index() {
+        const [s, hook_setGlobalState0] = useState(buildInitialState());
+        wireUpGlobalState(s, hook_setGlobalState0);
+
         return html`
         <div class="wrapper">
           <${MenuSide} />
@@ -244,9 +248,49 @@
         `;
       }
 
+      const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      function to_b58(term) {return (typeof term === 'string' || term instanceof String) ? to_b58_1(new TextEncoder().encode(term)) : to_b58_1(term)}
+      function to_b58_1(B,A){if(!A){A=MAP};var d=[],s="",i,j,c,n;for(i in B){j=0,c=B[i];s+=c||s.length^i?"":1;while(j in d||c){n=d[j];n=n?n*256+c:c;c=n/58|0;d[j]=n%58;j++}}while(j--)s+=A[d[j]];return s};
+      function from_b58(term) {return from_b58_1(term)}
+      function from_b58_1(S,A){if(!A){A=MAP};var d=[],b=[],i,j,c,n;for(i in S){j=0,c=A.indexOf(S[i]);if(c<0)return undefined;c||b.length^i?i:b.push(0);while(j in d||c){n=d[j];n=n?n*58+c:c;c=n>>8;d[j]=n%256;j++}}while(j--)b.push(d[j]);return new Uint8Array(b)};
+
+      function generate_random_keypair() {
+        var sign_keypair = nacl.sign.keyPair();
+        const pub_b58 = to_b58(sign_keypair.publicKey)
+        const sec_b58 = to_b58(sign_keypair.secretKey)
+        return [pub_b58, sec_b58]
+      }
+
+      function read_keypair() {
+        var guest_seckey = localStorage.getItem("privkey:0");
+        if (!guest_seckey) {
+          return [null, null];
+        } else {
+          var guest_seckey = localStorage.getItem("privkey:0");
+          var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(guest_seckey))
+          var pub_b58 = to_b58(keyPair_ed.publicKey)
+          var sec_b58 = to_b58(keyPair_ed.secretKey)
+          return [pub_b58, sec_b58]
+        }
+      }
+
+      function init_seckey(force_refresh) {
+        var [pub_b58, sec_b58] =  read_keypair()
+        if (!pub_b58 || force_refresh) {
+          var [pub_b58, sec_b58] = generate_random_keypair();
+          localStorage.setItem("privkey:0", sec_b58);
+          return [pub_b58, sec_b58]
+        } else {
+          return [pub_b58, sec_b58]
+        }
+      }
+
       async function load() {
-          //check if key exists, if no, prompt to make wallet
-          ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
+        var [pub_b58, sec_b58] = read_keypair()
+        if (pub_b58) {
+          setInitialState({pub_b58: pub_b58, sec_b58: sec_b58});
+        }
+        ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
       }
       load();
 
