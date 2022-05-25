@@ -5,6 +5,10 @@ export var initialState = {
   },
   wizard_new_user: {
     open: true,
+    slider_state: [0],
+    email: "",
+    password: "",
+    private_key: "",
   },
 };
 

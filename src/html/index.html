@@ -49,7 +49,7 @@
     <div id="app"></div>
 
     <script type="module">
-      import { setInitialState, buildInitialState, wireUpGlobalState } from "./state.js"
+      import { setInitialState, buildInitialState, wireUpGlobalState, setGlobalState, globalState } from "./state.js"
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
 
@@ -194,7 +194,45 @@
         `
       }
 
+      // postMessage(JSON.stringify({opcode: "HACK_move_wizard_slider", index: 1}))
       function WizardNewUser() {
+        const fn_move_slider = function(e, index) {
+          e.preventDefault();
+          const slider_state = [...globalState.wizard_new_user.slider_state, index]
+          setGlobalState({wizard_new_user: {slider_state: slider_state}})
+          postMessage(JSON.stringify({opcode: "HACK_move_wizard_slider", index: index}));
+          return false;
+        }
+
+        const fn_move_back = function(e) {
+          e.preventDefault();
+          var slider_state = [...globalState.wizard_new_user.slider_state];
+          slider_state.pop()
+          setGlobalState({wizard_new_user: {slider_state: slider_state}})
+          postMessage(JSON.stringify({opcode: "HACK_move_wizard_slider", index: slider_state[slider_state.length-1]}));
+          return false;
+        }
+
+        const fn_slider_to_wallet = function(e) {
+          e.preventDefault();
+          return false;
+        }
+
+        const fn_login_with_email = function(e) {
+          e.preventDefault();
+          return false;
+        }
+
+        /*
+        0 welcome
+        1 email/pkey
+        2 email auth
+        3 pkey gen/import
+        4 pkey gen
+        5 pkey import
+        6 congradulation
+        */
+
         return html`
         <div class="wrapper-inline">
           <main class="no-header wizard-page">
@@ -206,7 +244,11 @@
                   <div class="form-mini-divider"></div>
                   <h3 class="onboard">Let’s get started</h3>
                   <p>We offer full custody or email based authentication.</p>
-                  <div><a href="signup.html" class="more-btn">Create GPUX Account</a></div>
+                  <div>
+                    <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_move_slider(e, 1)}>
+                      Create GPUX Account
+                    </a>
+                  </div>
                 </div>
               </div>
               <div class="wizard-item">
@@ -214,9 +256,14 @@
                   <div class="form-divider"></div>
                   <img src="img/content/onboard2.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
-                  <h3>Easy Crypto Trading</h3>
-                  <p>Never a better time than now to start thinking about how you can manage all your finances and crypto assets from one place.</p>
-                  <div><a href="signup.html" class="more-btn">Create Account</a></div>
+                  <h3>Almost There</h3>
+                  <p>Choose your method of custody. (you can change later)</p>
+                  <div><a href="/" class="more-btn" onClick=${e=> fn_move_slider(e, 2)}>✉️ Continue using Email</a></div>
+                  <div>
+                    <a href="/private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 3)}>
+                      🔐 Continue using Private Key
+                    </a>
+                  </div>
                 </div>
               </div>
               <div class="wizard-item">
@@ -224,13 +271,82 @@
                   <div class="form-divider"></div>
                   <img src="img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
-                  <h3>Setup Account Now</h3>
-                  <P>Never a better time than now to start thinking about how you can manage all your finances and crypto assets from one place.</p>
-                  <div><a href="index.html" class="more-btn">Login Account</a></div>
+                  <h3>Email Authentication</h3>
+                  <p>No need to register just login and your account will be created.</p>
+                  <div>
+                    <a class="more-btn" style=${{padding: "0px", border: "0px", minWidth: "300px"}}>
+                      <div class="form-row-group with-icons">
+                        <div class="form-row no-padding" style=${{display: "-webkit-box"}}>
+                          <i class="fa fa-envelope"></i>
+                          <input type="email" class="form-element" placeholder="" />
+                        </div>
+                      </div>
+                    </a>
+                  </div>
+                  <div>
+                    <a class="more-btn" style=${{padding: "0px", border: "0px", minWidth: "300px"}}>
+                      <div class="form-row-group with-icons">
+                        <div class="form-row no-padding" style=${{display: "-webkit-box"}}>
+                          <i class="fa fa-lock"></i>
+                          <input type="password" class="form-element" placeholder="" />
+                        </div>
+                      </div>
+                    </a>
+                  </div>
+                  <div><a href="/login_with_email" class="more-btn" onClick=${e=> fn_login_with_email(e)}>Continue</a></div>
+                </div>
+              </div>
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3>Setup Private Key</h3>
+                  <P>Generate or import a new ED25519 private key.</p>
+                  <div><a href="/generate_private_key" class="more-btn">🎲 Generate Private Key</a></div>
+                  <div>
+                    <a href="/import_private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 7)}>
+                      Import Private Key
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3>Import Private Key</h3>
+                  <P>Paste your ED25519 private key in base58 or base64.</p>
+                  <div>
+                    <a class="more-btn" style=${{padding: "0px", border: "0px", minWidth: "300px"}}>
+                      <div class="form-row no-padding">
+                        <input type="text" class="form-element" placeholder="sfTh8uY4X3ppy1m.." />
+                      </div>
+                    </a>
+                  </div>
+                  <div><a href="/generate_private_key" class="more-btn">Confirm</a></div>
+                </div>
+              </div>
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3>Congratulations!</h3>
+                  <P>Your all set to create your first job.</p>
+                  <div><a href="/learn_more" class="more-btn" onClick=${e=> {e.preventDefault(); fn_slider_to_wallet(); return false;}}>Learn More</a></div>
+                  <div><a href="/to_wallet" class="more-btn" onClick=${e=> {e.preventDefault(); fn_slider_to_wallet(); return false;}}>
+                    Take me to my Wallet</a>
+                  </div>
                 </div>
               </div>
             </div>
-            <a class="wizard-skip-link" href="index.html">SKIP</a>    
+            ${
+              globalState.wizard_new_user.slider_state.length == 1 ?
+                html`<a class="wizard-skip-link" href="https://gpux.ai/">BACK TO GPUX</a>` :
+                html`<a class="wizard-skip-link" href="/" onClick=${e=> fn_move_back(e)}>BACK</a>`
+            }
           </main>
         </div>
         `
