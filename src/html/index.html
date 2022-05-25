@@ -29,9 +29,9 @@
     <!-- <link rel="stylesheet" type="text/css" href="plugins/c3-chart/c3.css"> -->
 
     <!-- Swiper slider css file -->
-    <!-- <link rel="stylesheet" href="css/swiper.min.css">
-    <link rel="stylesheet" href="css/jqcandlestick.css"> -->
-
+    <link rel="stylesheet" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/swiper.min.css">
+    <!-- <link rel="stylesheet" href="css/jqcandlestick.css"> -->
+    
     <!--turbo slider plugin css file -->
     <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/plugins/turbo-slider/turbo.css">
@@ -54,14 +54,21 @@
       export var initialState = {
         path: globalThis.location.pathname == "" ? "/" : globalThis.location.pathname,
         remote: {
-          balance: 0.00,
+          credit: 0.00,
+          earned: 0.00,
+        },
+        menu: {
+          modal_private_key_open: false,
+        },
+        dashboard: {
+          model_buy_credits_open: false
         },
         wizard_new_user: {
           open: true,
           slider_state: [0],
           email: "",
           password: "",
-          private_key: "",
+          secret_key: "",
         },
       };
 
@@ -151,22 +158,42 @@
         });
       }
 
-
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
       const BNDLR_HACK = `${globalThis.location.protocol}//rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/`
+
+      function fn_logout(e) {
+        e.preventDefault();
+        localStorage.removeItem("privkey:0");
+        window.location = "/"
+        return false;
+      }
 
       function MenuSide() {
         return html`
         <div class="nav-menu">
           <nav class="menu">
-            <!-- Menu navigation start -->
             <div class="nav-container">
+
+              <div class="popup-overlay" id="basicPopup" style=${{display: globalState.menu.modal_private_key_open ? "block" : "none", zIndex: 1111}}>
+                <div class="popup-container">
+                  <div class="popup-content">
+                    ${globalState.sec_b58}
+                  </div>
+                </div>
+              </div>
+
               <ul class="main-menu">
                 <li class="active">
-                  <a href="index.html"><img src="${BNDLR_HACK}img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong> </a>
+                  <a href="/"><img src="${BNDLR_HACK}img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong></a>
                 </li>
                 <li class="">
+                  <a href="/show_private_key" onClick=${e=> {e.preventDefault(); setGlobalState({menu: {modal_private_key_open: true}}); return false;}}><img src="${BNDLR_HACK}img/content/icons/11.png" alt="" /><strong class="special">Private Key</strong> </a>
+                </li>
+                <li>
+                  <a href="/logout" onClick=${e=> fn_logout(e)}><img src="${BNDLR_HACK}img/content/icons/9.png" alt="" /><strong class="special">Logout</strong> </a>
+                </li>
+                <!--<li class="">
                   <a href="wallet.html"><img src="${BNDLR_HACK}img/content/icons/2.png" alt="" /><strong class="special">My Walet</strong> </a>
                 </li>
                 <li class="">
@@ -225,16 +252,15 @@
                     <li><a href="contact.html" data-loader="show">Contact</a></li>
                     <li><a href="blank.html" data-loader="show">Blank Page</a></li>
                   </ul>
-                </li>
+                </li>-->
               </ul>
             </div>
-            <!-- Menu navigation end -->
           </nav>
         </div>
         `
       }
 
-      function RandomPage() {
+      function WalletDashboard() {
         return html`
         <div class="wrapper-inline">
           <header class="no-background">
@@ -252,8 +278,8 @@
               <div class="d-flex align-items-center mt-30">
                 <div class="d-flex flex-grow">
                   <div class="mr-auto">
-                    <h1 class="b-val"> $2,589.50 </h1>
-                    <p class="g-text mb-0">Total Balance</p>
+                    <h1 class="b-val"> 2589.50 </h1>
+                    <p class="g-text mb-0">Total Credits</p>
                   </div>
                   <div class="ml-auto align-self-end">
                     <a href="profile.html" class="profile-av"><img src="${BNDLR_HACK}img/content/avatar/avatar.png" /></a>
@@ -297,12 +323,145 @@
         `
       }
 
+      function WalletDashboard2() {
+        var bc_modal_open = globalState.dashboard.model_buy_credits_open;
+
+        return html`
+        <div class="wrapper-inline">
+          <header>
+            <h1 class="page-title">Dashboard</h1>
+            <div class="search-button" data-search="open">
+              GPUX
+            </div>
+            <div class="navi-menu-button">
+              <em></em>
+              <em></em>
+              <em></em>
+            </div>
+          </header>
+          <main>
+
+            <div class="container">
+              
+              <div class="form-divider"></div>
+
+              <form id="settingsForm">
+                <div class="list-box">
+                  <div class="list-item">
+                    <img src="https://assets.coingecko.com/coins/images/17233/large/imx.png?1636691817" alt="" />
+                    <em class="seperate"></em>
+                    <span class="list-item-title">Credit <small class="text-muted"> - ${globalState.remote.credit} </small></span>
+
+                    <div style=${{float: "right"}}>
+                      <a href="/buy_credits" class="more-btn" style=${{marginTop: "0px", padding: "6px 30px", borderRadius: "0px"}} 
+                        onClick=${e=> {e.preventDefault(); setGlobalState({dashboard: {model_buy_credits_open: true}}); return false;}}>Buy Credits</a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="list-box">
+                  <div class="list-item">
+                    <img src="https://s2.coinmarketcap.com/static/img/coins/200x200/4943.png" alt="" />
+                    <em class="seperate"></em>
+                    <span class="list-item-title">Earned <small class="text-muted"> - ${globalState.remote.earned} </small></span>
+
+                    <!--<div style=${{float: "right"}}>
+                      <a href="/login_with_email" class="more-btn" style=${{marginTop: "0px"}} onClick=${e=> fn_login_with_email(e)}>Withdraw</a>
+                    </div>-->
+                  </div>
+                </div>
+
+                <div class="form-divider"></div>
+                <div class="form-label-divider"><span>Edit Setting</span></div>
+
+                <section class="crypto container">
+                  <h4 class="title-main">Card Settings</h4>
+                  <div class="swiper-container">
+                    <div class="swiper-wrapper">
+                      <div class="swiper-slide">
+                        <div class="card-content card2">
+                          <i class="fa fa-check check-green"></i>
+                          <h3 class="card-no mb-10"><span>****</span><span>****</span><span>****</span><span>2864</span></h3>
+                          <div class="card-info d-flex">
+                            <div class="holder-info">
+                              <small class="c-info">Card Holder</small>
+                              <h6 class="c-name">Smith Wright</h6>
+                            </div>
+                              <div class="expire-info">
+                              <small class="c-info">Expires</small>
+                              <h6 class="c-name">08/22</h6>
+                            </div>
+                            <div class="cvv-info">
+                              <small class="c-info">CVV</small>
+                              <h6 class="c-name">826</h6>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div class="form-divider"></div>
+                <div class="form-row mb-70">
+                  <a href="#" class="button circle block red" id="getCheckedButton">Remove Credit Card</a>
+                </div>
+                <div class="form-divider"></div>
+
+
+                <div class="popup-overlay" id="formPopup" style=${{display: bc_modal_open ? "block" : "none", zIndex: 1111}}> <!-- if you dont want overlay add class .no-overlay -->
+                  <div class="popup-container">
+                    <div class="popup-header">
+                      <h3 class="popup-title">Form Popup</h3>
+                      <span class="popup-close" data-dismiss="true" onClick=${e=> {e.preventDefault(); setGlobalState({dashboard: {model_buy_credits_open: false}}); return false;}}><i class="fa fa-times"></i></span>
+                    </div>
+                    <div class="popup-content">
+                      
+                      <!--<div class="form-row-group with-icons">
+                        <div class="form-row no-padding">
+                          <i class="fa fa-envelope"></i>
+                          <input type="text" class="form-element" placeholder="Input element" />
+                        </div>
+                      </div>-->
+
+                      <div class="form-mini-divider"></div>
+
+                      <div class="form-row-group with-icons">
+                        <div class="form-row no-padding">
+                          <i class="fa fa-money-bill"></i>
+                          <select class="form-element" style=${{marginLeft: "8px"}}>
+                            <option value="6.1" selected>$6.1 - 5 Credits</option>
+                            <option value="24.4">$24.4 - 20 Credits</option>
+                            <option value="122">$122 - 100 Credits</option>
+                          </select>
+                        </div>
+                      </div>
+
+                    </div>
+                    <div class="popup-footer">
+                      <button class="button orange">Buy</button>
+                    </div>
+                  </div>
+                </div>
+
+
+              </form>
+
+            </div>
+          </main>
+        </div>
+        `
+      }
+
       // postMessage(JSON.stringify({opcode: "HACK_move_wizard_slider", index: 1}))
       function WizardNewUser() {
-        const fn_move_slider = function(e, index) {
+        const fn_move_slider = function(e, index, extra_state) {
           e.preventDefault();
+          //TODO: fix this
+          if (!extra_state)
+            extra_state = {}
           const slider_state = [...globalState.wizard_new_user.slider_state, index]
-          setGlobalState({wizard_new_user: {slider_state: slider_state}})
+          setGlobalState({...extra_state, wizard_new_user: {slider_state: slider_state}})
           postMessage(JSON.stringify({opcode: "HACK_move_wizard_slider", index: index}));
           return false;
         }
@@ -318,11 +477,35 @@
 
         const fn_slider_to_wallet = function(e) {
           e.preventDefault();
+          setGlobalState({
+            pub_b58: globalState.temp_pub_b58, sec_b58: globalState.temp_sec_b58,
+            temp_pub_b58: null, temp_sec_b58: null
+          });
+          window.location = "/"
           return false;
         }
 
         const fn_login_with_email = function(e) {
           e.preventDefault();
+          return false;
+        }
+
+        const fn_generate_pkey = function(e) {
+          e.preventDefault();
+          var [pub_b58, sec_b58] = init_seckey();
+          fn_move_slider(e, 5, {temp_pub_b58: pub_b58, temp_sec_b58: sec_b58})
+          return false;
+        }
+
+        const fn_login_with_seckey = function(e) {
+          e.preventDefault();
+          try {
+            var [pb58, sec_b58] = secretkey_to_keypair(globalState.wizard_new_user.secret_key)
+            localStorage.setItem("privkey:0", sec_b58);
+            window.location = "/"
+          } catch (err) {
+            alert("import failed")
+          }
           return false;
         }
 
@@ -346,7 +529,7 @@
                   <img src="${BNDLR_HACK}img/content/onboard1.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3 class="onboard">Let’s get started</h3>
-                  <p>We offer full custody or email based authentication.</p>
+                  <p>We offer self-custody or email based authentication.</p>
                   <div>
                     <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_move_slider(e, 1)}>
                       Create GPUX Account
@@ -406,9 +589,9 @@
                   <div class="form-mini-divider"></div>
                   <h3>Setup Private Key</h3>
                   <P>Generate or import a new ED25519 private key.</p>
-                  <div><a href="/generate_private_key" class="more-btn">🎲 Generate Private Key</a></div>
+                  <div><a href="/generate_private_key" class="more-btn" onClick=${e=> fn_generate_pkey(e)}>🎲 Generate Private Key</a></div>
                   <div>
-                    <a href="/import_private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 7)}>
+                    <a href="/import_private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 4)}>
                       Import Private Key
                     </a>
                   </div>
@@ -424,11 +607,11 @@
                   <div>
                     <a class="more-btn" style=${{padding: "0px", border: "0px", minWidth: "300px"}}>
                       <div class="form-row no-padding">
-                        <input type="text" class="form-element" placeholder="sfTh8uY4X3ppy1m.." />
+                        <input type="text" class="form-element" placeholder="sfTh8uY4...X3ppy1m" onBlur=${e=> setGlobalState({wizard_new_user: {secret_key: e.target.value}})} />
                       </div>
                     </a>
                   </div>
-                  <div><a href="/generate_private_key" class="more-btn">Confirm</a></div>
+                  <div><a href="/import_private_key" class="more-btn" onClick=${e=> fn_login_with_seckey(e)}>Confirm</a></div>
                 </div>
               </div>
               <div class="wizard-item">
@@ -437,9 +620,8 @@
                   <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Congratulations!</h3>
-                  <P>Your all set to create your first job.</p>
-                  <div><a href="/learn_more" class="more-btn" onClick=${e=> {e.preventDefault(); fn_slider_to_wallet(); return false;}}>Learn More</a></div>
-                  <div><a href="/to_wallet" class="more-btn" onClick=${e=> {e.preventDefault(); fn_slider_to_wallet(); return false;}}>
+                  <P>Check the docs on your way in.</p>
+                  <div><a href="/to_wallet" class="more-btn" onClick=${e=> fn_slider_to_wallet(e)}>
                     Take me to my Wallet</a>
                   </div>
                 </div>
@@ -462,7 +644,10 @@
         return html`
         <div class="wrapper">
           <${MenuSide} />
-          <${WizardNewUser} />
+          ${!globalState.pub_b58
+            ? html`<${WizardNewUser} />` 
+            : html`<${WalletDashboard2} />`
+          }
         </div>
         `;
       }
@@ -477,6 +662,13 @@
         var sign_keypair = nacl.sign.keyPair();
         const pub_b58 = to_b58(sign_keypair.publicKey)
         const sec_b58 = to_b58(sign_keypair.secretKey)
+        return [pub_b58, sec_b58]
+      }
+
+      function secretkey_to_keypair(seckey) {
+        var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(seckey))
+        var pub_b58 = to_b58(keyPair_ed.publicKey)
+        var sec_b58 = to_b58(keyPair_ed.secretKey)
         return [pub_b58, sec_b58]
       }
 
