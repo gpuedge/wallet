@@ -16,7 +16,7 @@ main = "./shim.mjs"
 
 [[build.upload.rules]]
 type = "Text"
-globs = ["**/*.html"]
+globs = ["html/index.html"]
 
 [durable_objects]
 bindings = [{name = "MONOLITHWALLET", class_name = "MonolithWallet"}]

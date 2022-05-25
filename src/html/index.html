@@ -18,28 +18,30 @@
     <link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,900" rel="stylesheet">
 
     <!-- Fontawesome font file css -->
-    <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 
     <!-- Animate css file for css3 animations. for more : https://daneden.github.io/animate.css -->
     <!-- Only use animate action. If you dont use animation, you don't have to add.-->
-    <link rel="stylesheet" type="text/css" href="css/animate.css">
-    <link rel="stylesheet" type="text/css" href="css/cryptocoins.css">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- <link rel="stylesheet" type="text/css" href="css/cryptocoins.css"> -->
+    
     <!-- <link rel="stylesheet" type="text/css" href="plugins/c3-chart/c3.css"> -->
 
     <!-- Swiper slider css file -->
-    <link rel="stylesheet" href="css/swiper.min.css">
-    <link rel="stylesheet" href="css/jqcandlestick.css">
+    <!-- <link rel="stylesheet" href="css/swiper.min.css">
+    <link rel="stylesheet" href="css/jqcandlestick.css"> -->
 
     <!--turbo slider plugin css file -->
-    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="plugins/turbo-slider/turbo.css">
+    <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/plugins/turbo-slider/turbo.css">
 
     <!-- Template global css file. Requared all pages -->
-    <link rel="stylesheet" type="text/css" href="css/global.style.css">
+    <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/global.style.css">
 
-    <script src="js/jquery-3.2.1.min.js"></script>
-    <script src="plugins/turbo-slider/turbo.min.js"></script>
-    <script src="js/global.script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/plugins/turbo-slider/turbo.min.js"></script>
+    <script src="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/js/global.script.js"></script>
 
     <style>
     </style>
@@ -49,9 +51,110 @@
     <div id="app"></div>
 
     <script type="module">
-      import { setInitialState, buildInitialState, wireUpGlobalState, setGlobalState, globalState } from "./state.js"
+      export var initialState = {
+        path: globalThis.location.pathname == "" ? "/" : globalThis.location.pathname,
+        remote: {
+          balance: 0.00,
+        },
+        wizard_new_user: {
+          open: true,
+          slider_state: [0],
+          email: "",
+          password: "",
+          private_key: "",
+        },
+      };
+
+      function isMergeableObject(value) {
+        return isNonNullObject(value) &&
+          !isSpecial(value)
+      }
+
+      function isNonNullObject(value) {
+        return !!value && typeof value === 'object'
+      }
+
+      function isSpecial(value) {
+        var stringValue = Object.prototype.toString.call(value)
+
+        return stringValue === '[object RegExp]' ||
+          stringValue === '[object Date]' ||
+          stringValue === '[object Uint8Array]' ||
+          isReactElement(value)
+      }
+
+      var canUseSymbol = typeof Symbol === 'function' && Symbol.for
+      var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7
+
+      function isReactElement(value) {
+        return value.$$typeof === REACT_ELEMENT_TYPE
+      }
+
+      export let globalState = {};
+      export let setGlobalState0 = () => {};
+      export let setGlobalState = (new_state) => {
+        var state = globalThis.deepmerge(globalState, new_state, {
+          arrayMerge: (dest, source, opts) => source,
+          isMergeableObject: (obj) => isMergeableObject(obj)
+        })
+        setGlobalState0(state);
+      };
+      export let setGlobalStateFull = (new_state) => {
+        setGlobalState0(new_state);
+      };
+
+      export let mergeObjects = (old_state, new_state) => {
+        var state = globalThis.deepmerge(old_state, new_state, {
+          arrayMerge: (dest, source, opts) => source,
+          isMergeableObject: (obj) => isMergeableObject(obj)
+        })
+        return state;
+      };
+
+      export function wireUpGlobalState(hook_globalState, hook_setGlobalState0) {
+        globalState = hook_globalState;
+        setGlobalState0 = hook_setGlobalState0;
+      }
+
+      export function buildInitialState() {
+        return {
+          ...initialState,
+        };
+      };
+
+      export function getInitialState() {
+        return initialState;
+      };
+
+      export function setInitialState(state) {
+        initialState = mergeObjects(initialState, state)
+        return initialState;
+      };
+
+      export const doNav = async (e, next_page) => {
+        if (e) {
+          e.preventDefault();
+        }
+        if (globalState.path !== next_page) {
+          globalThis.history.pushState(undefined, undefined, `${next_page}`);
+          setGlobalState({
+            path: next_page
+          });
+        }
+        return false;
+      }
+
+      globalThis.onpopstate = function(e) {
+        var next_page = globalThis.location.pathname;
+        setGlobalState({
+          path: next_page
+        });
+      }
+
+
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
+      const BNDLR_HACK = `${globalThis.location.protocol}//rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/`
 
       function MenuSide() {
         return html`
@@ -61,28 +164,28 @@
             <div class="nav-container">
               <ul class="main-menu">
                 <li class="active">
-                  <a href="index.html"><img src="img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong> </a>
+                  <a href="index.html"><img src="${BNDLR_HACK}img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong> </a>
                 </li>
                 <li class="">
-                  <a href="wallet.html"><img src="img/content/icons/2.png" alt="" /><strong class="special">My Walet</strong> </a>
+                  <a href="wallet.html"><img src="${BNDLR_HACK}img/content/icons/2.png" alt="" /><strong class="special">My Walet</strong> </a>
                 </li>
                 <li class="">
-                  <a href="trading.html"><img src="img/content/icons/3.png" alt="" /><strong class="special">Crypto Trade</strong> </a>
+                  <a href="trading.html"><img src="${BNDLR_HACK}img/content/icons/3.png" alt="" /><strong class="special">Crypto Trade</strong> </a>
                 </li>
                 <li class="">
-                  <a href="buy-sell.html"><img src="img/content/icons/6.png" alt="" /><strong class="special">Buy & sell</strong> </a>
+                  <a href="buy-sell.html"><img src="${BNDLR_HACK}img/content/icons/6.png" alt="" /><strong class="special">Buy & sell</strong> </a>
                 </li>
                 <li class="">
-                  <a href="profile.html"><img src="img/content/icons/5.png" alt="" /><strong class="special">Trader Profile</strong> </a>
+                  <a href="profile.html"><img src="${BNDLR_HACK}img/content/icons/5.png" alt="" /><strong class="special">Trader Profile</strong> </a>
                 </li>
                 <li class="">
-                  <a href="affiliate.html"><img src="img/content/icons/4.png" alt="" /><strong class="special">Affiliate System</strong> </a>
+                  <a href="affiliate.html"><img src="${BNDLR_HACK}img/content/icons/4.png" alt="" /><strong class="special">Affiliate System</strong> </a>
                 </li>
                 <li class="">
-                  <a href="setting.html"><img src="img/content/icons/11.png" alt="" /><strong class="special">Settings</strong> </a>
+                  <a href="setting.html"><img src="${BNDLR_HACK}img/content/icons/11.png" alt="" /><strong class="special">Settings</strong> </a>
                 </li>
                 <li>
-                  <a href="javascript:void(0);"><img src="img/content/icons/9.png" alt="" /><strong class="special">Login/Register</strong> <span class="fa fa-angle-down"></span></a>
+                  <a href="javascript:void(0);"><img src="${BNDLR_HACK}img/content/icons/9.png" alt="" /><strong class="special">Login/Register</strong> <span class="fa fa-angle-down"></span></a>
                   <ul>
                     <li><a href="login.html" data-loader="show">Login</a></li>
                     <li><a href="signup.html" data-loader="show">Register</a></li>
@@ -90,20 +193,20 @@
                   </ul>
                 </li>
                 <li>
-                  <a href="javascript:void(0);"><img src="img/content/icons/8.png" alt="" /> <strong class="special">Wizards</strong> <span class="fa fa-angle-down"></span></a>
+                  <a href="javascript:void(0);"><img src="${BNDLR_HACK}img/content/icons/8.png" alt="" /> <strong class="special">Wizards</strong> <span class="fa fa-angle-down"></span></a>
                   <ul>
                     <li><a href="wizard-default.html" data-loader="show">Wizard Default</a></li>
                     <li><a href="wizard-fullscreen.html" data-loader="show">Wizard Fullscreen</a></li>
                   </ul>
                 </li>
                 <li class="">
-                  <a href="charts.html"><img src="img/content/icons/14.png" alt="" /><strong class="special">Charts</strong> </a>
+                  <a href="charts.html"><img src="${BNDLR_HACK}img/content/icons/14.png" alt="" /><strong class="special">Charts</strong> </a>
                 </li>
                 <li>
-                  <a href="forms.html" data-loader="show"><img src="img/content/icons/7.png" alt="" /><strong class="special">Form Elements</strong></a>
+                  <a href="forms.html" data-loader="show"><img src="${BNDLR_HACK}img/content/icons/7.png" alt="" /><strong class="special">Form Elements</strong></a>
                 </li>
                 <li>
-                  <a href="#"><img src="img/content/icons/10.png" alt="" /><strong class="special"> Components</strong> <span class="fa fa-angle-down"></span></a>
+                  <a href="#"><img src="${BNDLR_HACK}img/content/icons/10.png" alt="" /><strong class="special"> Components</strong> <span class="fa fa-angle-down"></span></a>
                   <ul>
                     <li><a href="tab-bottom.html" data-loader="show">Tab (Bottom)</a></li>
                     <li><a href="tab-top.html" data-loader="show">Tab (Top)</a></li>
@@ -115,7 +218,7 @@
                   </ul>
                 </li>
                 <li class="">
-                  <a href="#"><img src="img/content/icons/15.png" alt="" /><strong class="special"> Pages</strong> <span class="fa fa-angle-down"></span></a>
+                  <a href="#"><img src="${BNDLR_HACK}img/content/icons/15.png" alt="" /><strong class="special"> Pages</strong> <span class="fa fa-angle-down"></span></a>
                   <ul>
                     <li class=""><a href="profile.html" data-loader="show">User Profile</a></li>
                     <li><a href="search-result.html" data-loader="show">Search Results</a></li>
@@ -153,26 +256,26 @@
                     <p class="g-text mb-0">Total Balance</p>
                   </div>
                   <div class="ml-auto align-self-end">
-                    <a href="profile.html" class="profile-av"><img src="img/content/avatar/avatar.png" /></a>
+                    <a href="profile.html" class="profile-av"><img src="${BNDLR_HACK}img/content/avatar/avatar.png" /></a>
                   </div>
                 </div>
               </div>
               <div class="services-bulk">
                 <div class="content-row">
                   <div class="serv-item">
-                    <a href="" class="serv-icon"><img src="img/content/icon1.png" class="mb-5" alt="" /></a>
+                    <a href="" class="serv-icon"><img src="${BNDLR_HACK}img/content/icon1.png" class="mb-5" alt="" /></a>
                     <span>Send </span>
                   </div>
                   <div class="serv-item">
-                    <a href="" class="serv-icon"><img src="img/content/icon2.png" class="mb-5" alt="" /></a>
+                    <a href="" class="serv-icon"><img src="${BNDLR_HACK}img/content/icon2.png" class="mb-5" alt="" /></a>
                     <span>Recieve </span>
                   </div>
                   <div class="serv-item">
-                    <a href="" class="serv-icon"><img src="img/content/icon4.png" class="mb-5" alt="" /></a>
+                    <a href="" class="serv-icon"><img src="${BNDLR_HACK}img/content/icon4.png" class="mb-5" alt="" /></a>
                     <span>Loan </span>
                   </div>
                   <div class="serv-item">
-                    <a href="" class="serv-icon"><img src="img/content/icon3.png" class="mb-5" alt="" /></a>
+                    <a href="" class="serv-icon"><img src="${BNDLR_HACK}img/content/icon3.png" class="mb-5" alt="" /></a>
                     <span>Topup </span>
                   </div>
                 </div>
@@ -240,7 +343,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard1.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard1.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3 class="onboard">Let’s get started</h3>
                   <p>We offer full custody or email based authentication.</p>
@@ -254,7 +357,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard2.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard2.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Almost There</h3>
                   <p>Choose your method of custody. (you can change later)</p>
@@ -269,7 +372,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Email Authentication</h3>
                   <p>No need to register just login and your account will be created.</p>
@@ -299,7 +402,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Setup Private Key</h3>
                   <P>Generate or import a new ED25519 private key.</p>
@@ -314,7 +417,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Import Private Key</h3>
                   <P>Paste your ED25519 private key in base58 or base64.</p>
@@ -331,7 +434,7 @@
               <div class="wizard-item">
                 <div class="wizard-content">
                   <div class="form-divider"></div>
-                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Congratulations!</h3>
                   <P>Your all set to create your first job.</p>
