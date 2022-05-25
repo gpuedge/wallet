@@ -1,0 +1,26 @@
+name = "gpux-wallet"
+# type = "javascript" is required to use the `[build]` section
+type = "javascript"
+account_id = "20bf2f5d11d26a322e389687896a6601"
+workers_dev = true
+route = "wallet.gpux.ai/*"
+zone_id = "30d2c0e577ab1d6a06d0730381197d20"
+
+[build]
+command = "npm install && npm run build"
+
+[build.upload]
+# The "modules" upload format is required for all projects that export a Durable Object class.
+format = "modules"
+main = "./shim.mjs"
+
+[[build.upload.rules]]
+type = "Text"
+globs = ["**/*.html"]
+
+[durable_objects]
+bindings = [{name = "MONOLITHWALLET", class_name = "MonolithWallet"}]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["MonolithWallet"]

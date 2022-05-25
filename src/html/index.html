@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👛</text></svg>">
+
+    <meta name="description" content="GPUx - Wallet" />
+    <meta charset="utf-8">
+    <title>Wallet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+     
+    <script src="https://unpkg.com/htm@2.2.1/dist/htm.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react@17.0.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@17.0.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+
+    <style>
+    </style>
+  </head>
+  <body>
+
+    <div id="app"></div>
+
+    <script type="module">
+      const { createElement, useState, useEffect, useRef } = React;
+      const html = htm.bind(createElement);
+
+      function Index() {
+        return html`
+        <div>
+          Hello cf
+        </div>
+        `;
+      }
+
+      async function load() {
+          ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
+      }
+      load();
+
+    </script>
+  </body>
+</html>
