@@ -6,11 +6,40 @@
     <meta name="description" content="GPUx - Wallet" />
     <meta charset="utf-8">
     <title>Wallet</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
      
     <script src="https://unpkg.com/htm@2.2.1/dist/htm.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/react@17.0.1/umd/react.production.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/react-dom@17.0.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+
+    <!-- Google font file. If you want you can change. -->
+    <link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,900" rel="stylesheet">
+
+    <!-- Fontawesome font file css -->
+    <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+
+    <!-- Animate css file for css3 animations. for more : https://daneden.github.io/animate.css -->
+    <!-- Only use animate action. If you dont use animation, you don't have to add.-->
+    <link rel="stylesheet" type="text/css" href="css/animate.css">
+    <link rel="stylesheet" type="text/css" href="css/cryptocoins.css">
+    <!-- <link rel="stylesheet" type="text/css" href="plugins/c3-chart/c3.css"> -->
+
+    <!-- Swiper slider css file -->
+    <link rel="stylesheet" href="css/swiper.min.css">
+    <link rel="stylesheet" href="css/jqcandlestick.css">
+
+    <!--turbo slider plugin css file -->
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="plugins/turbo-slider/turbo.css">
+
+    <!-- Template global css file. Requared all pages -->
+    <link rel="stylesheet" type="text/css" href="css/global.style.css">
+
+    <script src="js/jquery-3.2.1.min.js"></script>
+    <script src="plugins/turbo-slider/turbo.min.js"></script>
+    <script src="js/global.script.js"></script>
+
+    <script type="module" src="/state.js"></script>
 
     <style>
     </style>
@@ -23,15 +52,200 @@
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
 
+      function MenuSide() {
+        return html`
+        <div class="nav-menu">
+          <nav class="menu">
+            <!-- Menu navigation start -->
+            <div class="nav-container">
+              <ul class="main-menu">
+                <li class="active">
+                  <a href="index.html"><img src="img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong> </a>
+                </li>
+                <li class="">
+                  <a href="wallet.html"><img src="img/content/icons/2.png" alt="" /><strong class="special">My Walet</strong> </a>
+                </li>
+                <li class="">
+                  <a href="trading.html"><img src="img/content/icons/3.png" alt="" /><strong class="special">Crypto Trade</strong> </a>
+                </li>
+                <li class="">
+                  <a href="buy-sell.html"><img src="img/content/icons/6.png" alt="" /><strong class="special">Buy & sell</strong> </a>
+                </li>
+                <li class="">
+                  <a href="profile.html"><img src="img/content/icons/5.png" alt="" /><strong class="special">Trader Profile</strong> </a>
+                </li>
+                <li class="">
+                  <a href="affiliate.html"><img src="img/content/icons/4.png" alt="" /><strong class="special">Affiliate System</strong> </a>
+                </li>
+                <li class="">
+                  <a href="setting.html"><img src="img/content/icons/11.png" alt="" /><strong class="special">Settings</strong> </a>
+                </li>
+                <li>
+                  <a href="javascript:void(0);"><img src="img/content/icons/9.png" alt="" /><strong class="special">Login/Register</strong> <span class="fa fa-angle-down"></span></a>
+                  <ul>
+                    <li><a href="login.html" data-loader="show">Login</a></li>
+                    <li><a href="signup.html" data-loader="show">Register</a></li>
+                    <li><a href="forgot-password.html" data-loader="show">Forgot Password</a></li>
+                  </ul>
+                </li>
+                <li>
+                  <a href="javascript:void(0);"><img src="img/content/icons/8.png" alt="" /> <strong class="special">Wizards</strong> <span class="fa fa-angle-down"></span></a>
+                  <ul>
+                    <li><a href="wizard-default.html" data-loader="show">Wizard Default</a></li>
+                    <li><a href="wizard-fullscreen.html" data-loader="show">Wizard Fullscreen</a></li>
+                  </ul>
+                </li>
+                <li class="">
+                  <a href="charts.html"><img src="img/content/icons/14.png" alt="" /><strong class="special">Charts</strong> </a>
+                </li>
+                <li>
+                  <a href="forms.html" data-loader="show"><img src="img/content/icons/7.png" alt="" /><strong class="special">Form Elements</strong></a>
+                </li>
+                <li>
+                  <a href="#"><img src="img/content/icons/10.png" alt="" /><strong class="special"> Components</strong> <span class="fa fa-angle-down"></span></a>
+                  <ul>
+                    <li><a href="tab-bottom.html" data-loader="show">Tab (Bottom)</a></li>
+                    <li><a href="tab-top.html" data-loader="show">Tab (Top)</a></li>
+                    <li><a href="accordion.html" data-loader="show">Accordion</a></li>
+                    <li><a href="popup.html" data-loader="show">Popup Modal</a></li>
+                    <li><a href="checkbox-list.html" data-loader="show">Check List</a></li>
+                    <li><a href="link-list.html" data-loader="show">Link List</a></li>
+                    <li><a href="link-list-two-column.html" data-loader="show">Two Column Links</a></li>
+                  </ul>
+                </li>
+                <li class="">
+                  <a href="#"><img src="img/content/icons/15.png" alt="" /><strong class="special"> Pages</strong> <span class="fa fa-angle-down"></span></a>
+                  <ul>
+                    <li class=""><a href="profile.html" data-loader="show">User Profile</a></li>
+                    <li><a href="search-result.html" data-loader="show">Search Results</a></li>
+                    <li><a href="contact.html" data-loader="show">Contact</a></li>
+                    <li><a href="blank.html" data-loader="show">Blank Page</a></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+            <!-- Menu navigation end -->
+          </nav>
+        </div>
+        `
+      }
+
+      function RandomPage() {
+        return html`
+        <div class="wrapper-inline">
+          <header class="no-background">
+            <div class="search-button" data-search="open">
+              GPUX
+            </div>
+            <div class="navi-menu-button">
+              <em></em>
+              <em></em>
+              <em></em>
+            </div>
+          </header>
+          <main class="margin mt-0">
+            <div class="dash-balance">
+              <div class="d-flex align-items-center mt-30">
+                <div class="d-flex flex-grow">
+                  <div class="mr-auto">
+                    <h1 class="b-val"> $2,589.50 </h1>
+                    <p class="g-text mb-0">Total Balance</p>
+                  </div>
+                  <div class="ml-auto align-self-end">
+                    <a href="profile.html" class="profile-av"><img src="img/content/avatar/avatar.png" /></a>
+                  </div>
+                </div>
+              </div>
+              <div class="services-bulk">
+                <div class="content-row">
+                  <div class="serv-item">
+                    <a href="" class="serv-icon"><img src="img/content/icon1.png" class="mb-5" alt="" /></a>
+                    <span>Send </span>
+                  </div>
+                  <div class="serv-item">
+                    <a href="" class="serv-icon"><img src="img/content/icon2.png" class="mb-5" alt="" /></a>
+                    <span>Recieve </span>
+                  </div>
+                  <div class="serv-item">
+                    <a href="" class="serv-icon"><img src="img/content/icon4.png" class="mb-5" alt="" /></a>
+                    <span>Loan </span>
+                  </div>
+                  <div class="serv-item">
+                    <a href="" class="serv-icon"><img src="img/content/icon3.png" class="mb-5" alt="" /></a>
+                    <span>Topup </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <footer>
+              <div class="container">
+                <ul>
+                  <li><a href="#"><i class="fa fa-facebook"></i></a></li>
+                  <li><a href="#"><i class="fa fa-twitter"></i></a></li>
+                  <li><a href="#"><i class="fa fa-google"></i></a></li>
+                  <li><a href="#"><i class="fa fa-instagram"></i></a></li>
+                </ul>
+                <p>Copyright © All Right Reserved</p>
+              </div>
+            </footer>
+          </main>
+        </div>
+        `
+      }
+
+      function WizardNewUser() {
+        return html`
+        <div class="wrapper-inline">
+          <main class="no-header wizard-page">
+            <div class="wizard">
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard1.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3 class="onboard">Let’s get started</h3>
+                  <p>We offer full custody or email based authentication.</p>
+                  <div><a href="signup.html" class="more-btn">Create GPUX Account</a></div>
+                </div>
+              </div>
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard2.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3>Easy Crypto Trading</h3>
+                  <p>Never a better time than now to start thinking about how you can manage all your finances and crypto assets from one place.</p>
+                  <div><a href="signup.html" class="more-btn">Create Account</a></div>
+                </div>
+              </div>
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="img/content/onboard3.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3>Setup Account Now</h3>
+                  <P>Never a better time than now to start thinking about how you can manage all your finances and crypto assets from one place.</p>
+                  <div><a href="index.html" class="more-btn">Login Account</a></div>
+                </div>
+              </div>
+            </div>
+            <a class="wizard-skip-link" href="index.html">SKIP</a>    
+          </main>
+        </div>
+        `
+      }
+
       function Index() {
         return html`
-        <div>
-          Hello cf
+        <div class="wrapper">
+          <${MenuSide} />
+          <${WizardNewUser} />
         </div>
         `;
       }
 
       async function load() {
+          //check if key exists, if no, prompt to make wallet
           ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
       }
       load();
