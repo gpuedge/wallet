@@ -1,7 +1,9 @@
 // In order for our ES6 shim to find the class, we must export it
 // from the root of the CommonJS bundle
 const MonolithWallet = require('./monolith_wallet.js')
+const DOEmail = require('./do_email.js')
 exports.MonolithWallet = MonolithWallet
+exports.DOEmail = DOEmail
 
 import index_bin from './html/index.html'
 
@@ -41,12 +43,18 @@ function handleOptions(request) {
   }
 }
 
-async function handleRequest(request, env) {
+async function handleRequestWallet(request, env) {
   let id = env.MONOLITHWALLET.idFromName('monolith_wallet')
   let obj = env.MONOLITHWALLET.get(id)
   return obj.fetch(request.url)
   let resp = await obj.fetch(request.url)
   return new Response(await resp.text())
+}
+
+async function handleRequestEmail(request, env) {
+  let id = env.DOEMAIL.idFromName('email')
+  let obj = env.DOEMAIL.get(id)
+  return obj.fetch(request)
 }
 
 exports.handlers = {
@@ -62,8 +70,11 @@ exports.handlers = {
 
       if (request.method === "POST") {
         const url = new URL(request.url);
-        if (url.pathname == "/api/transfer") {
-          return await handleRequest(request, env)
+        if (url.pathname == "/api/email/login") {
+          return await handleRequestEmail(request, env)
+        }
+        if (url.pathname == "/api/wallet/transaction") {
+          return await handleRequestWallet(request, env)
         }
       }
 
@@ -73,4 +84,3 @@ exports.handlers = {
     }
   },
 }
-

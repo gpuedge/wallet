@@ -31,7 +31,7 @@
     <!-- Swiper slider css file -->
     <link rel="stylesheet" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/swiper.min.css">
     <!-- <link rel="stylesheet" href="css/jqcandlestick.css"> -->
-    
+
     <!--turbo slider plugin css file -->
     <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/plugins/turbo-slider/turbo.css">
@@ -42,6 +42,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/plugins/turbo-slider/turbo.min.js"></script>
     <script src="https://rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/js/global.script.js"></script>
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://unpkg.com/@stripe/react-stripe-js@latest/dist/react-stripe.umd.js"></script>
 
     <style>
     </style>
@@ -485,9 +488,26 @@
           return false;
         }
 
-        const fn_login_with_email = function(e) {
+        const fn_login_with_email = async function(e) {
           e.preventDefault();
-          return false;
+
+          var response = await fetch(`/api/email/login`, {
+            method: 'POST',
+            body: JSON.stringify({email: globalState.wizard_new_user.email, 
+              password: globalState.wizard_new_user.password}),
+            headers: {
+              'Content-Type': "application/json",
+              'Accept': 'application/json',
+            }
+          })
+          var {error, ed25519_secret_key} = await response.json();
+          if (error != "ok") {
+            alert(`Error ${error}`)
+            return false;
+          } else {
+            localStorage.setItem("privkey:0", ed25519_secret_key);
+            window.location = "/"
+          }
         }
 
         const fn_generate_pkey = function(e) {
@@ -543,7 +563,7 @@
                   <img src="${BNDLR_HACK}img/content/onboard2.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Almost There</h3>
-                  <p>Choose your method of custody. (you can change later)</p>
+                  <p>Choose your method of custody.</p>
                   <div><a href="/" class="more-btn" onClick=${e=> fn_move_slider(e, 2)}>✉️ Continue using Email</a></div>
                   <div>
                     <a href="/private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 3)}>
@@ -564,7 +584,7 @@
                       <div class="form-row-group with-icons">
                         <div class="form-row no-padding" style=${{display: "-webkit-box"}}>
                           <i class="fa fa-envelope"></i>
-                          <input type="email" class="form-element" placeholder="" />
+                          <input type="email" class="form-element" placeholder="" onBlur=${e=> setGlobalState({wizard_new_user: {email: e.target.value}})} />
                         </div>
                       </div>
                     </a>
@@ -574,7 +594,7 @@
                       <div class="form-row-group with-icons">
                         <div class="form-row no-padding" style=${{display: "-webkit-box"}}>
                           <i class="fa fa-lock"></i>
-                          <input type="password" class="form-element" placeholder="" />
+                          <input type="password" class="form-element" placeholder="" onBlur=${e=> setGlobalState({wizard_new_user: {password: e.target.value}})} />
                         </div>
                       </div>
                     </a>
@@ -588,7 +608,7 @@
                   <img src="${BNDLR_HACK}img/content/onboard3.png" alt="" width="220" />
                   <div class="form-mini-divider"></div>
                   <h3>Setup Private Key</h3>
-                  <P>Generate or import a new ED25519 private key.</p>
+                  <P>Generate or import ED25519 private key.</p>
                   <div><a href="/generate_private_key" class="more-btn" onClick=${e=> fn_generate_pkey(e)}>🎲 Generate Private Key</a></div>
                   <div>
                     <a href="/import_private_key" class="more-btn" onClick=${e=> fn_move_slider(e, 4)}>
@@ -661,14 +681,14 @@
       function generate_random_keypair() {
         var sign_keypair = nacl.sign.keyPair();
         const pub_b58 = to_b58(sign_keypair.publicKey)
-        const sec_b58 = to_b58(sign_keypair.secretKey)
+        const sec_b58 = to_b58(sign_keypair.secretKey.slice(0,32))
         return [pub_b58, sec_b58]
       }
 
       function secretkey_to_keypair(seckey) {
-        var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(seckey))
+        var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(seckey))
         var pub_b58 = to_b58(keyPair_ed.publicKey)
-        var sec_b58 = to_b58(keyPair_ed.secretKey)
+        var sec_b58 = to_b58(keyPair_ed.secretKey.slice(0,32))
         return [pub_b58, sec_b58]
       }
 
@@ -677,16 +697,13 @@
         if (!guest_seckey) {
           return [null, null];
         } else {
-          var guest_seckey = localStorage.getItem("privkey:0");
-          var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(guest_seckey))
-          var pub_b58 = to_b58(keyPair_ed.publicKey)
-          var sec_b58 = to_b58(keyPair_ed.secretKey)
-          return [pub_b58, sec_b58]
+          var seckey = localStorage.getItem("privkey:0");
+          return secretkey_to_keypair(seckey)
         }
       }
 
       function init_seckey(force_refresh) {
-        var [pub_b58, sec_b58] =  read_keypair()
+        var [pub_b58, sec_b58] = read_keypair()
         if (!pub_b58 || force_refresh) {
           var [pub_b58, sec_b58] = generate_random_keypair();
           localStorage.setItem("privkey:0", sec_b58);

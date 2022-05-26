@@ -19,8 +19,14 @@ type = "Text"
 globs = ["html/index.html"]
 
 [durable_objects]
-bindings = [{name = "MONOLITHWALLET", class_name = "MonolithWallet"}]
+bindings = [
+    {name = "MONOLITHWALLET", class_name = "MonolithWallet"},
+    {name = "DOEMAIL", class_name = "DOEmail"},
+]
 
 [[migrations]]
 tag = "v1" # Should be unique for each entry
 new_classes = ["MonolithWallet"]
+[[migrations]]
+tag = "v2" # Should be unique for each entry
+new_classes = ["DOEmail"]
