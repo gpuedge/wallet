@@ -5,6 +5,8 @@ const DOEmail = require('./do_email.js')
 exports.MonolithWallet = MonolithWallet
 exports.DOEmail = DOEmail
 
+const Stripe = require('./stripe.js')
+
 import index_bin from './html/index.html'
 
 const corsHeaders = {
@@ -59,6 +61,7 @@ async function handleRequestEmail(request, env) {
 
 exports.handlers = {
   async fetch(request, env) {
+    globalThis.env = env;
     try {
       if (request.method === "OPTIONS") {
         return handleOptions(request);
@@ -70,6 +73,11 @@ exports.handlers = {
 
       if (request.method === "POST") {
         const url = new URL(request.url);
+        if (url.pathname == "/api/stripe/create-payment-intent") {
+          var json = await request.json()
+          var reply = await Stripe.create_payment_intent(json.public_key, json.amount);
+          return new Response(JSON.stringify(reply), {status: 200, headers: {"Content-Type": "application/json"}})
+        }
         if (url.pathname == "/api/email/login") {
           return await handleRequestEmail(request, env)
         }
@@ -77,10 +85,13 @@ exports.handlers = {
           return await handleRequestWallet(request, env)
         }
       }
-
       return new Response("", {status: 404, headers: {"Content-Type": "text/html"}})
     } catch (e) {
-      return new Response(e.message)
+      if (e.stack) {
+        return new Response(JSON.stringify({error: e.message, stack_trace: e.stack}))
+      } else {
+        return new Response(JSON.stringify({error: e}))
+      }
     }
   },
 }
