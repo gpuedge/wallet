@@ -48,9 +48,7 @@ function handleOptions(request) {
 async function handleRequestWallet(request, env) {
   let id = env.MONOLITHWALLET.idFromName('monolith_wallet')
   let obj = env.MONOLITHWALLET.get(id)
-  return obj.fetch(request.url)
-  let resp = await obj.fetch(request.url)
-  return new Response(await resp.text())
+  return obj.fetch(request)
 }
 
 async function handleRequestEmail(request, env) {
@@ -79,14 +77,30 @@ exports.handlers = {
           return new Response(JSON.stringify(reply), {status: 200, headers: {"Content-Type": "application/json"}})
         }
         if (url.pathname == "/api/stripe/webhook_AwZ863") {
-          await Stripe.process_webhook(request);
+          var [signature, json] = await Stripe.process_webhook(request);
+          
+          let id = env.MONOLITHWALLET.idFromName('monolith_wallet')
+          let obj = env.MONOLITHWALLET.get(id)
+          await obj.fetch(
+            "https://ignore.com/api/wallet/stripe_mint", {
+              method: "POST",
+              body: JSON.stringify({signature: signature, params: json}),
+              headers: {
+                "Content-Type": "application/json"
+              }
+            }
+          )
+
           return new Response("", {status: 200})
-        }
-        if (url.pathname == "/api/email/login") {
-          return await handleRequestEmail(request, env)
         }
         if (url.pathname == "/api/wallet/transaction") {
           return await handleRequestWallet(request, env)
+        }
+        if (url.pathname == "/api/wallet/balance") {
+          return await handleRequestWallet(request, env)
+        }
+        if (url.pathname == "/api/email/login") {
+          return await handleRequestEmail(request, env)
         }
       }
       return new Response("", {status: 404, headers: {"Content-Type": "text/html"}})

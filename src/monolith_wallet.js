@@ -1,4 +1,5 @@
-const BDFL_PUBLIC_KEY = "";
+const Util = require('./util.js')
+const nacl = require('tweetnacl');
 
 module.exports = class MonolithWallet {
   constructor(controller, env) {
@@ -10,9 +11,16 @@ module.exports = class MonolithWallet {
     controller.blockConcurrencyWhile(async () => {
         let state = await globalThis.storage.get("state") || {
           credit: {}, credit_out: {}, 
-          earned: {}, earned_lifetime: {}
+          earned: {}, earned_lifetime: {},
+          anti_replay: {},
+          stripe_anti_replay: {},
         };
         globalThis.state = state;
+
+        var keyPair_ed = nacl.sign.keyPair.fromSeed(Util.from_b58(env.BDFLSECKEY))
+        globalThis.BDFL_PUBLIC_KEY = Util.to_b58(keyPair_ed.publicKey)
+        globalThis.BDFL_PUBLIC_KEY_RAW = keyPair_ed.publicKey
+        globalThis.BDFL_SECRET_KEY_RAW = keyPair_ed.secretKey
     })
   }
 
@@ -20,114 +28,185 @@ module.exports = class MonolithWallet {
     let url = new URL(request.url);
 
     switch (url.pathname) {
+    case "/api/wallet/balance":
+      var json = await request.json()
+      var balance = this.balance(json)
+      return new Response(JSON.stringify(balance), {status: 200});
+
     case "/api/wallet/transaction":
       var json = await request.json()
-      return transaction(json)
+      var tx_rx = this.transaction(json)
+      return new Response(JSON.stringify(tx_rx), {status: 200});
+
+    case "/api/wallet/stripe_mint":
+      var json = await request.json()
+      var tx_rx = this.stripe_mint(json)
+      return new Response(JSON.stringify(tx_rx), {status: 200});
 
     default:
       return new Response("Not found", {status: 404});
     }
   }
 
+  balance(json) {
+    var public_key = json.public_key;
+    var credit = globalThis.state["credit"][public_key] || 0
+    var earned = globalThis.state["earned"][public_key] || 0
+    return {credit: credit.toString(), earned: earned.toString()}
+  }
+
+  create_transaction_from_bdfl(receiver, opcode, params) {
+    var tx = {
+      sender: globalThis.BDFL_PUBLIC_KEY,
+      receiver: receiver,
+      timestamp: Date.now()*1000*1000,
+      opcode: opcode,
+      params: params,
+    }
+    var json = JSON.stringify(tx)
+
+    var tx_signature = nacl.sign.detached(
+      new TextEncoder().encode(json), globalThis.BDFL_SECRET_KEY_RAW)
+    return {tx: json, tx_signature: Util.to_b58(tx_signature)}
+  }
+
+  stripe_mint(json) {
+    if (!!globalThis.state["stripe_anti_replay"][json.signature])
+      return;
+    globalThis.state["stripe_anti_replay"][json.signature] = true;
+    globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
+
+    var tx = this.create_transaction_from_bdfl(globalThis.BDFL_PUBLIC_KEY, "mint", 
+      {receiver: json.params.receiver, amount: json.params.credit.toString()})
+    return this.transaction(tx)
+  }
+
   transaction(json) {
-    var tx_encoded = json.tx_encoded
-    var tx_signature = json.tx_signature
+    var tx_encoded = new TextEncoder().encode(json.tx)
+    var tx_signature = Util.from_b58(json.tx_signature)
+    var tx = JSON.parse(json.tx)
+    var tx_public_key = Util.from_b58(tx.sender)
+
     //verify tx signature
-    //decode transaction as b58 or b64
-    //verify timestamp atleast 1minute recent
+    var valid = nacl.sign.detached.verify(
+      tx_encoded, tx_signature, tx_public_key)
+    if (!valid) {
+      return {error: "invalid_signature"}
+    }
+
+    //Do we care about this atm? What about broken system clocks?
+    //We can clear the anti-replay buffer with this contraint
+    //var time_delta = (Date.now() - tx.timestamp/1_000_000)
+    //if (time_delta <= 60_000 && time_delta >= -60_000) {
+    //  return {error: "invalid_timestamp"}
+    //}
+
+    //Use timestamp+signature as nonce for antireplay
+    if (!!globalThis.state["anti_replay"][json.tx_signature]) {
+      return {error: "replay"}
+    }
+    globalThis.state["anti_replay"][json.tx_signature] = true;
+    globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
+
     var sender = tx.sender;
     var receiver = tx.receiver;
-    var timestamp = tx.timestamp;
     var opcode = tx.opcode;
     var params = tx.params;
 
-    var result;
-    if (opcode == "pay_for_resources") {
-      result = pay_for_resources(sender, receiver, timestamp, opcode, params)
-    }
-    if (opcode == "refund_for_resources") {
-      result = refund_for_resources(sender, receiver, timestamp, opcode, params)
+    var result = {};
+    if (opcode == "mint") {
+      result = this.mint(sender, receiver, params)
+    } else if (opcode == "pay_for_resources") {
+      result = this.pay_for_resources(sender, receiver, params)
+    } else if (opcode == "refund_for_resources") {
+      result = this.refund_for_resources(sender, receiver, params)
+    } else {
+      return {error: "invalid_opcode"}
     }
 
-    var rx = {signer: "Our BDFL", timestamp: Date.now(), result: result}
-    var rx_signature = "sign|tx_encoded+rx_encoded"
+    var rx = {signer: globalThis.BDFL_PUBLIC_KEY, timestamp: Date.now()*1000*1000, result: result}
+    var rx_json = JSON.stringify(rx)
+
+    var tx_rx_signature = nacl.sign.detached(
+      new TextEncoder().encode(`${json.tx}${rx_json}`), globalThis.BDFL_SECRET_KEY_RAW)
+
     var tx_rx = {
-      tx_encoded: json.tx_encoded,
+      error: "ok",
+      tx: json.tx,
       tx_signature: json.tx_signature,
-      rx_encoded: rx_encoded,
-      tx_rx_signature: tx_rx_signature,
+      rx: rx_json,
+      tx_rx_signature: Util.to_b58(tx_rx_signature),
     }
 
-    return new Response(JSON.stringify({error: "invalid_opcode"}), {status: 200});
+    return tx_rx;
   }
 
-  mint(sender, receiver, timestamp, opcode, params) {
-    var amount = params.amount;
-    //if string float?
-    //if float convert to integer
-    //if string convert to number
-    //check > 0, check < total amount
-    //
+  mint(sender, receiver, params) {    
+    var amount = BigInt(params.amount);
+    var credit_receiver = params.receiver
+    
     if (amount < 0) {
-      return new Response(JSON.stringify({error: "amount_must_be_gt_0"}), {status: 200});
+      return {error: "amount_must_be_gt_0"}
     }
 
-    globalThis.state["credit"][receiver] = (globalThis.state["credit"][receiver] || 0)
-    globalThis.state["credit"][receiver] += amount
+    globalThis.state["credit"][credit_receiver] = (globalThis.state["credit"][credit_receiver] || BigInt(0))
+    globalThis.state["credit"][credit_receiver] += amount
 
-    var credit = globalThis.state["credit"][receiver]
-    return new Response(JSON.stringify({error: "ok", balance: {credit: credit}}), {status: 200});
+    globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
+
+    var credit = globalThis.state["credit"][credit_receiver]
+    return {credit: credit.toString()}
   }
 
-  pay_for_resources(sender, receiver, timestamp, opcode, params) {
-    var amount = params.amount;
-    //if string float?
-    //if float convert to integer
-    //if string convert to number
-    //check > 0, check < total amount
-    //
-    var balance = globalThis.state["credit"][sender] || 0
+  pay_for_resources(sender, receiver, params) {
+    var amount = BigInt(params.amount);
+
+    var balance = globalThis.state["credit"][sender] || BigInt(0)
     if (amount < 0) {
-      return new Response(JSON.stringify({error: "amount_must_be_gt_0"}), {status: 200});
+      return {error: "amount_must_be_gt_0"}
     }
     if (amount > balance) {
-      return new Response(JSON.stringify({error: "amount_must_be_lt_balance"}), {status: 200});
+      return {error: "amount_must_be_lt_balance"}
     }
 
     globalThis.state["credit"][sender] -= amount
-    globalThis.state["earned"][receiver] = (globalThis.state["earned"][receiver] || 0)
+    globalThis.state["earned"][receiver] = (globalThis.state["earned"][receiver] || BigInt(0))
     globalThis.state["earned"][receiver] += amount
     globalThis.state["earned_lifetime"][receiver] += amount
 
-    globalThis.state["credit_out"][`${sender}_${receiver}`] = (globalThis.state["credit_out"][`${sender}_${receiver}`] || 0)
+    globalThis.state["credit_out"][`${sender}_${receiver}`] = (globalThis.state["credit_out"][`${sender}_${receiver}`] || BigInt(0))
     globalThis.state["credit_out"][`${sender}_${receiver}`] += amount
+
+    globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var credit = globalThis.state["credit"][sender]
     var earned = globalThis.state["earned"][receiver]
-    return new Response(JSON.stringify({error: "ok", balance: {credit: credit}}), {status: 200});
+    return {credit: credit.toString()}
   }
 
-  refund_for_resources(sender, receiver, timestamp, opcode, params) {
-    var amount = params.amount;
+  refund_for_resources(sender, receiver, params) {
+    var amount = BigInt(params.amount);
 
-    var credit_out = globalThis.state[`${receiver}_${sender}`] || 0
+    var credit_out = globalThis.state[`${receiver}_${sender}`] || BigInt(0)
     if (amount < 0) {
-      return new Response(JSON.stringify({error: "amount_must_be_gt_0"}), {status: 200});
+      return {error: "amount_must_be_gt_0"}
     }
     if (amount > credit_out) {
-      return new Response(JSON.stringify({error: "amount_must_be_lt_credit_out"}), {status: 200});
+      return {error: "amount_must_be_lt_credit_out"}
     }
 
     globalThis.state["credit"][receiver] += amount
-    globalThis.state["earned"][sender] = (globalThis.state["earned"][sender] || 0)
+    globalThis.state["earned"][sender] = (globalThis.state["earned"][sender] || BigInt(0))
     globalThis.state["earned"][sender] -= amount
     globalThis.state["earned_lifetime"][sender] -= amount
 
-    globalThis.state["credit_out"][`${receiver}_${sender}`] = (globalThis.state["credit_out"][`${receiver}_${sender}`] || 0)
+    globalThis.state["credit_out"][`${receiver}_${sender}`] = (globalThis.state["credit_out"][`${receiver}_${sender}`] || BigInt(0))
     globalThis.state["credit_out"][`${receiver}_${sender}`] -= amount
+
+    globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var credit = globalThis.state["credit"][receiver]
     var earned = globalThis.state["earned"][sender]
-    return new Response(JSON.stringify({error: "ok", balance: {earned: earned}}), {status: 200});
+    return {earned: earned.toString()}
   }
 }

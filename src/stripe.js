@@ -36,9 +36,9 @@ async function create_payment_intent(public_key, amount) {
 async function process_webhook(request) {
   var [verified, signature, json] = await unwrap_webhook(request)
   if (!verified) {
-    return;
+    return [null, null];
   }
-  //create a MINT transaction with our BDFL
+  return [signature, json]
 }
 
 async function unwrap_webhook(request) {
@@ -74,13 +74,13 @@ async function unwrap_webhook(request) {
     encoder.encode(signed_payload)
   );
 
-  var credit = 0;
+  var credit = "0";
   if (json.data.object.amount_received == 610)
-    credit = 5_00000000;
+    credit = "500000000";
   if (json.data.object.amount_received == 2440)
-    credit = 20_00000000;
+    credit = "2000000000";
   if (json.data.object.amount_received == 12200)
-    credit = 100_00000000;
+    credit = "10000000000";
 
   var reply = {
     credit: credit,

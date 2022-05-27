@@ -158,6 +158,7 @@
           earned: 0.00,
         },
         menu: {
+          modal_public_key_open: false,
           modal_private_key_open: false,
         },
         dashboard: {
@@ -271,6 +272,23 @@
 
       const BNDLR_HACK = `${globalThis.location.protocol}//rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/`
 
+      async function api_balance(pub_b58) {
+        var reply = await fetch("/api/wallet/balance", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({public_key: pub_b58 || globalState.pub_b58}),
+        })
+        var {credit, earned} = await reply.json()
+        return {credit, earned}
+      }
+
+      function format_8(number) {
+        var str = number.toString()
+        var prefix = str.slice(0, -8).padStart(8, "0")
+        var suffix = str.slice(-8).padStart(8, "0")
+        return Number(`${prefix}.${suffix}`).toFixed(2)
+      }
+
       function fn_logout(e) {
         e.preventDefault();
         localStorage.removeItem("privkey:0");
@@ -284,6 +302,13 @@
           <nav class="menu">
             <div class="nav-container">
 
+              <div class="popup-overlay" id="basicPopup" style=${{display: globalState.menu.modal_public_key_open ? "block" : "none", zIndex: 1111}}>
+                <div class="popup-container">
+                  <div class="popup-content">
+                    ${globalState.pub_b58}
+                  </div>
+                </div>
+              </div>
               <div class="popup-overlay" id="basicPopup" style=${{display: globalState.menu.modal_private_key_open ? "block" : "none", zIndex: 1111}}>
                 <div class="popup-container">
                   <div class="popup-content">
@@ -295,6 +320,9 @@
               <ul class="main-menu">
                 <li class="active">
                   <a href="/"><img src="${BNDLR_HACK}img/content/icons/1.png" alt="" /><strong class="special">Dashboard</strong></a>
+                </li>
+                <li class="">
+                  <a href="/show_public_key" onClick=${e=> {e.preventDefault(); setGlobalState({menu: {modal_public_key_open: true}}); return false;}}><img src="${BNDLR_HACK}img/content/icons/12.png" alt="" /><strong class="special">Public Key</strong> </a>
                 </li>
                 <li class="">
                   <a href="/show_private_key" onClick=${e=> {e.preventDefault(); setGlobalState({menu: {modal_private_key_open: true}}); return false;}}><img src="${BNDLR_HACK}img/content/icons/11.png" alt="" /><strong class="special">Private Key</strong> </a>
@@ -570,6 +598,12 @@
           return false;
         }
 
+        useEffect(async () => {
+          var balance = await api_balance()
+          setGlobalState({remote: balance})
+          setTimeout(async e=> setGlobalState({remote: await api_balance()}), 300)
+        }, []);
+
         return html`
         <div class="wrapper-inline">
           <header>
@@ -586,7 +620,7 @@
           <main>
 
             <div class="container">
-              
+            
               <div class="form-divider"></div>
 
               <form id="settingsForm">
@@ -594,7 +628,7 @@
                   <div class="list-item">
                     <img src="https://assets.coingecko.com/coins/images/17233/large/imx.png?1636691817" alt="" />
                     <em class="seperate"></em>
-                    <span class="list-item-title">Credit <small class="text-muted"> - ${globalState.remote.credit} </small></span>
+                    <span class="list-item-title">Credit <small class="text-muted"> - ${format_8(globalState.remote.credit)} </small></span>
 
                     ${globalState.dashboard.buy_credits_step == 0 &&
                       html`
@@ -610,7 +644,7 @@
                   <div class="list-item">
                     <img src="https://s2.coinmarketcap.com/static/img/coins/200x200/4943.png" alt="" />
                     <em class="seperate"></em>
-                    <span class="list-item-title">Earned <small class="text-muted"> - ${globalState.remote.earned} </small></span>
+                    <span class="list-item-title">Earned <small class="text-muted"> - ${format_8(globalState.remote.earned)} </small></span>
 
                     <!--<div style=${{float: "right"}}>
                       <a href="/login_with_email" class="more-btn" style=${{marginTop: "0px"}} onClick=${e=> fn_login_with_email(e)}>Withdraw</a>
