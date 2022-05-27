@@ -596,10 +596,13 @@
                     <em class="seperate"></em>
                     <span class="list-item-title">Credit <small class="text-muted"> - ${globalState.remote.credit} </small></span>
 
-                    <div style=${{float: "right"}}>
-                      <a href="/buy_credits" class="more-btn" style=${{marginTop: "0px", padding: "6px 30px", borderRadius: "0px"}} 
-                        onClick=${e=> fn_buy_credits(e)}>Buy Credits</a>
-                    </div>
+                    ${globalState.dashboard.buy_credits_step == 0 &&
+                      html`
+                      <div style=${{float: "right"}}>
+                        <a href="/buy_credits" class="more-btn" style=${{marginTop: "0px", padding: "6px 30px", borderRadius: "0px"}} 
+                          onClick=${e=> fn_buy_credits(e)}>Buy Credits</a>
+                      </div>`
+                    }
                   </div>
                 </div>
 

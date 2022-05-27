@@ -1,3 +1,5 @@
+const BDFL_PUBLIC_KEY = "";
+
 module.exports = class MonolithWallet {
   constructor(controller, env) {
     globalThis.controller = controller;
@@ -57,6 +59,24 @@ module.exports = class MonolithWallet {
     }
 
     return new Response(JSON.stringify({error: "invalid_opcode"}), {status: 200});
+  }
+
+  mint(sender, receiver, timestamp, opcode, params) {
+    var amount = params.amount;
+    //if string float?
+    //if float convert to integer
+    //if string convert to number
+    //check > 0, check < total amount
+    //
+    if (amount < 0) {
+      return new Response(JSON.stringify({error: "amount_must_be_gt_0"}), {status: 200});
+    }
+
+    globalThis.state["credit"][receiver] = (globalThis.state["credit"][receiver] || 0)
+    globalThis.state["credit"][receiver] += amount
+
+    var credit = globalThis.state["credit"][receiver]
+    return new Response(JSON.stringify({error: "ok", balance: {credit: credit}}), {status: 200});
   }
 
   pay_for_resources(sender, receiver, timestamp, opcode, params) {

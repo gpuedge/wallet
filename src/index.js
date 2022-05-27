@@ -78,6 +78,10 @@ exports.handlers = {
           var reply = await Stripe.create_payment_intent(json.public_key, json.amount);
           return new Response(JSON.stringify(reply), {status: 200, headers: {"Content-Type": "application/json"}})
         }
+        if (url.pathname == "/api/stripe/webhook_AwZ863") {
+          await Stripe.process_webhook(request);
+          return new Response("", {status: 200})
+        }
         if (url.pathname == "/api/email/login") {
           return await handleRequestEmail(request, env)
         }
