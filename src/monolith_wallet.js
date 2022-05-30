@@ -94,12 +94,11 @@ module.exports = class MonolithWallet {
       return {error: "invalid_signature"}
     }
 
-    //Do we care about this atm? What about broken system clocks?
     //We can clear the anti-replay buffer with this contraint
-    //var time_delta = (Date.now() - tx.timestamp/1_000_000)
-    //if (time_delta <= 60_000 && time_delta >= -60_000) {
-    //  return {error: "invalid_timestamp"}
-    //}
+    var time_delta = (Date.now() - tx.timestamp/1_000_000)
+    if (time_delta <= 60_000 && time_delta >= -60_000) {
+      return {error: "stale_timestamp"}
+    }
 
     //Use timestamp+signature as nonce for antireplay
     if (!!globalThis.state["anti_replay"][json.tx_signature]) {
@@ -129,14 +128,16 @@ module.exports = class MonolithWallet {
 
     var tx_rx_signature = nacl.sign.detached(
       new TextEncoder().encode(`${json.tx}${rx_json}`), globalThis.BDFL_SECRET_KEY_RAW)
-
+    var tx_rx_signature_b58 = Util.to_b58(tx_rx_signature)
     var tx_rx = {
       error: "ok",
       tx: json.tx,
       tx_signature: json.tx_signature,
       rx: rx_json,
-      tx_rx_signature: Util.to_b58(tx_rx_signature),
+      tx_rx_signature: tx_rx_signature_b58,
     }
+
+    globalThis.storage.put(`tx:${tx_rx_signature_b58}`, tx_rx, {allowUnconfirmed: false, noCache: true})
 
     return tx_rx;
   }

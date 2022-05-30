@@ -8,7 +8,7 @@ async function hit_stripe(url, body) {
     method: "POST",
     body: www_body,
     headers: {
-      "authorization": `Basic ${btoa(globalThis.env.STRIPESK_DEV.concat(":"))}`,
+      "authorization": `Basic ${btoa(globalThis.env.STRIPESK.concat(":"))}`,
       "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
     }
   }

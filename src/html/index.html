@@ -268,9 +268,12 @@
       const { Elements } = ReactStripe;
       const { CardElement, PaymentElement, useStripe, useElements } = ReactStripe;
 
-      const stripe_promise = Stripe("pk_test_LvYeio4zWnczfO3g1IMlpBbf");
+      const stripe_promise = Stripe("pk_live_OJmlxaqiVfaBVdXF0NpB46KK");
+      //const stripe_promise = Stripe("pk_test_LvYeio4zWnczfO3g1IMlpBbf");
 
       const BNDLR_HACK = `${globalThis.location.protocol}//rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/`
+
+      const PARENT = window.opener || window.parent;
 
       async function api_balance(pub_b58) {
         var reply = await fetch("/api/wallet/balance", {
@@ -279,6 +282,7 @@
           body: JSON.stringify({public_key: pub_b58 || globalState.pub_b58}),
         })
         var {credit, earned} = await reply.json()
+        PARENT.postMessage({opcode: "balance", credit: credit, earned: earned}, "*")
         return {credit, earned}
       }
 
@@ -599,6 +603,7 @@
         }
 
         useEffect(async () => {
+          //PARENT.postMessage(JSON.stringify({opcode: "public_key", public_key: globalState.pub_b58}), "*")
           var balance = await api_balance()
           setGlobalState({remote: balance})
           setTimeout(async e=> setGlobalState({remote: await api_balance()}), 300)
@@ -970,16 +975,89 @@
         `
       }
 
+      function WizardConfirmTx({tx, extra}) {
+        const fn_cancel = function(e) {
+          e.preventDefault();
+          PARENT.postMessage({opcode: "wallet_popup_closed", rpcid: extra.rpcid}, "*")
+          window.close()
+          return false;
+        }
+
+        const fn_approve = function(e, tx) {
+          e.preventDefault();
+          var tx = {
+            ...tx,
+            sender: globalState.pub_b58,
+            timestamp: Date.now()*1_000*1_000,
+          }
+          var json = JSON.stringify(tx)
+
+          var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(globalState.sec_b58))
+          var tx_signature = nacl.sign.detached(
+            new TextEncoder().encode(json), keyPair_ed.secretKey)
+
+          var full_tx = {tx: json, tx_signature: to_b58(tx_signature)}
+
+          PARENT.postMessage({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx}, "*")
+          window.close()
+          return false;
+        }
+
+        var note = "Default note, tx not recognized."
+        var note1 = null;
+        if (tx && tx.opcode == "pay_for_resources") {
+          note = `You are depositing ${format_8(tx.params.amount)} credits for up to ${extra.duration} hours.`;
+          note1 = `(Unused credits will be refunded)`
+        }
+
+        return html`
+        <div class="wrapper-inline">
+          <main class="no-header wizard-page">
+            <div class="wizard">
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="${BNDLR_HACK}img/content/onboard1.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3 class="onboard">Confirm Purchase</h3>
+                  <p>${note}</p>
+                  ${note1 ? html`<p>${note1}</p>` : null}
+                  <div>
+                    <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_approve(e, tx)}>
+                      Approve
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <a class="wizard-skip-link" href="/cancel" onClick=${e=> fn_cancel(e)}>CANCEL</a>
+          </main>
+        </div>
+        `
+      }
+
       function Index() {
         const [s, hook_setGlobalState0] = useState(buildInitialState());
         wireUpGlobalState(s, hook_setGlobalState0);
+
+        var isTxWizard = false;
+        var tx = {};
+        var extra = {};
+        if (globalThis.location.hash.length > 0) {
+          isTxWizard = true;
+          var json = JSON.parse(new TextDecoder().decode(from_b58(globalThis.location.hash.replace("#", ""))))
+          tx = json.tx
+          extra = json.extra
+        }
 
         return html`
         <div class="wrapper">
           <${MenuSide} />
           ${!globalState.pub_b58
             ? html`<${WizardNewUser} />` 
-            : html`<${WalletDashboard2} />`
+            : isTxWizard ?
+                html`<${WizardConfirmTx} tx=${tx} extra=${extra} />`
+              : html`<${WalletDashboard2} />`
           }
         </div>
         `;
