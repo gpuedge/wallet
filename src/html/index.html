@@ -154,8 +154,8 @@
       export var initialState = {
         path: globalThis.location.pathname == "" ? "/" : globalThis.location.pathname,
         remote: {
-          credit: 0.00,
-          earned: 0.00,
+          credit: 0,
+          earned: 0,
         },
         menu: {
           modal_public_key_open: false,
@@ -164,7 +164,7 @@
         dashboard: {
           model_buy_credits_open: false,
           buy_credits_step: 0,
-          buy_credits_amount: "610",
+          buy_credits_amount: 610,
         },
         wizard_new_user: {
           open: true,
@@ -710,9 +710,9 @@
                 <div class="form-divider"></div>
                 ${globalState.dashboard.buy_credits_step == 1
                   ? [
-                    html`<a href="#" class="button circle block" id="getCheckedButton" style=${{marginBottom: "12px"}} onClick=${e=> fn_buy_credits_2(e, "610")}>Buy 5 Credits - $6.10</a>`,
-                    html`<a href="#" class="button circle block" id="getCheckedButton" style=${{marginBottom: "12px"}} onClick=${e=> fn_buy_credits_2(e, "2440")}>Buy 20 Credits - $24.40</a>`,
-                    html`<a href="#" class="button circle block yellow" id="getCheckedButton" onClick=${e=> fn_buy_credits_2(e, "12200")}>Buy 100 Credits - $122.00</a>`,
+                    html`<a href="#" class="button circle block" id="getCheckedButton" style=${{marginBottom: "12px"}} onClick=${e=> fn_buy_credits_2(e, 610)}>Buy 5 Credits - $6.10</a>`,
+                    html`<a href="#" class="button circle block" id="getCheckedButton" style=${{marginBottom: "12px"}} onClick=${e=> fn_buy_credits_2(e, 2440)}>Buy 20 Credits - $24.40</a>`,
+                    html`<a href="#" class="button circle block yellow" id="getCheckedButton" onClick=${e=> fn_buy_credits_2(e, 12200)}>Buy 100 Credits - $122.00</a>`,
                   ]
                   : null
                 }

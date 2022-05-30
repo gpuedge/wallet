@@ -20,12 +20,12 @@ async function hit_stripe(url, body) {
 }
 
 async function create_payment_intent(public_key, amount) {
-  if (amount != "610" && amount != "2440" && amount != "12200") {
+  if (amount != 610 && amount != 2440 && amount != 12200) {
     return {error: "invalid_amount"}
   }
 
   var {client_secret, last_payment_error} = await hit_stripe("https://api.stripe.com/v1/payment_intents", {
-    "amount": amount,
+    "amount": amount.toString(),
     "currency": "usd",
     "automatic_payment_methods[enabled]": true,
     "metadata[public_key]": public_key,
@@ -76,11 +76,11 @@ async function unwrap_webhook(request) {
 
   var credit = "0";
   if (json.data.object.amount_received == 610)
-    credit = "500000000";
+    credit = 500000000;
   if (json.data.object.amount_received == 2440)
-    credit = "2000000000";
+    credit = 2000000000;
   if (json.data.object.amount_received == 12200)
-    credit = "10000000000";
+    credit = 10000000000;
 
   var reply = {
     credit: credit,

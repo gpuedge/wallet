@@ -9,6 +9,7 @@ module.exports = class MonolithWallet {
     globalThis.env = env;
 
     controller.blockConcurrencyWhile(async () => {
+        //await globalThis.storage.deleteAll();
         let state = await globalThis.storage.get("state") || {
           credit: {}, credit_out: {}, 
           earned: {}, earned_lifetime: {},
@@ -52,7 +53,7 @@ module.exports = class MonolithWallet {
     var public_key = json.public_key;
     var credit = globalThis.state["credit"][public_key] || 0
     var earned = globalThis.state["earned"][public_key] || 0
-    return {credit: credit.toString(), earned: earned.toString()}
+    return {credit: credit, earned: earned}
   }
 
   create_transaction_from_bdfl(receiver, opcode, params) {
@@ -77,7 +78,7 @@ module.exports = class MonolithWallet {
     globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var tx = this.create_transaction_from_bdfl(globalThis.BDFL_PUBLIC_KEY, "mint", 
-      {receiver: json.params.receiver, amount: json.params.credit.toString()})
+      {receiver: json.params.receiver, amount: json.params.credit})
     return this.transaction(tx)
   }
 
@@ -112,6 +113,13 @@ module.exports = class MonolithWallet {
     var opcode = tx.opcode;
     var params = tx.params;
 
+    if (!Util.is_string(receiver) || receiver.length > 255) {
+      return {error: "sanitization_receiver"}
+    }
+    if (!Util.is_string(opcode) || opcode.length > 255) {
+      return {error: "sanitization_opcode"}
+    }
+
     var result = {};
     if (opcode == "mint") {
       result = this.mint(sender, receiver, params)
@@ -143,26 +151,32 @@ module.exports = class MonolithWallet {
   }
 
   mint(sender, receiver, params) {    
-    var amount = BigInt(params.amount);
     var credit_receiver = params.receiver
-    
+
+    var amount = params.amount;
+    if (!Number.isInteger(amount)) {
+      return {error: "amount_must_be_integer"}
+    }
     if (amount < 0) {
       return {error: "amount_must_be_gt_0"}
     }
 
-    globalThis.state["credit"][credit_receiver] = (globalThis.state["credit"][credit_receiver] || BigInt(0))
+    globalThis.state["credit"][credit_receiver] = (globalThis.state["credit"][credit_receiver] || 0)
     globalThis.state["credit"][credit_receiver] += amount
 
     globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var credit = globalThis.state["credit"][credit_receiver]
-    return {credit: credit.toString()}
+    return {credit: credit}
   }
 
   pay_for_resources(sender, receiver, params) {
-    var amount = BigInt(params.amount);
+    var amount = params.amount
 
-    var balance = globalThis.state["credit"][sender] || BigInt(0)
+    var balance = globalThis.state["credit"][sender] || 0
+    if (!Number.isInteger(amount)) {
+      return {error: "amount_must_be_integer"}
+    }
     if (amount < 0) {
       return {error: "amount_must_be_gt_0"}
     }
@@ -171,24 +185,27 @@ module.exports = class MonolithWallet {
     }
 
     globalThis.state["credit"][sender] -= amount
-    globalThis.state["earned"][receiver] = (globalThis.state["earned"][receiver] || BigInt(0))
+    globalThis.state["earned"][receiver] = (globalThis.state["earned"][receiver] || 0)
     globalThis.state["earned"][receiver] += amount
     globalThis.state["earned_lifetime"][receiver] += amount
 
-    globalThis.state["credit_out"][`${sender}_${receiver}`] = (globalThis.state["credit_out"][`${sender}_${receiver}`] || BigInt(0))
+    globalThis.state["credit_out"][`${sender}_${receiver}`] = (globalThis.state["credit_out"][`${sender}_${receiver}`] || 0)
     globalThis.state["credit_out"][`${sender}_${receiver}`] += amount
 
     globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var credit = globalThis.state["credit"][sender]
     var earned = globalThis.state["earned"][receiver]
-    return {credit: credit.toString()}
+    return {credit: credit}
   }
 
   refund_for_resources(sender, receiver, params) {
-    var amount = BigInt(params.amount);
+    var amount = params.amount
 
-    var credit_out = globalThis.state[`${receiver}_${sender}`] || BigInt(0)
+    var credit_out = globalThis.state[`${receiver}_${sender}`] || 0
+    if (!Number.isInteger(amount)) {
+      return {error: "amount_must_be_integer"}
+    }
     if (amount < 0) {
       return {error: "amount_must_be_gt_0"}
     }
@@ -197,17 +214,17 @@ module.exports = class MonolithWallet {
     }
 
     globalThis.state["credit"][receiver] += amount
-    globalThis.state["earned"][sender] = (globalThis.state["earned"][sender] || BigInt(0))
+    globalThis.state["earned"][sender] = (globalThis.state["earned"][sender] || 0)
     globalThis.state["earned"][sender] -= amount
     globalThis.state["earned_lifetime"][sender] -= amount
 
-    globalThis.state["credit_out"][`${receiver}_${sender}`] = (globalThis.state["credit_out"][`${receiver}_${sender}`] || BigInt(0))
+    globalThis.state["credit_out"][`${receiver}_${sender}`] = (globalThis.state["credit_out"][`${receiver}_${sender}`] || 0)
     globalThis.state["credit_out"][`${receiver}_${sender}`] -= amount
 
     globalThis.storage.put("state", globalThis.state, {allowUnconfirmed: false, noCache: true})
 
     var credit = globalThis.state["credit"][receiver]
     var earned = globalThis.state["earned"][sender]
-    return {earned: earned.toString()}
+    return {earned: earned}
   }
 }
