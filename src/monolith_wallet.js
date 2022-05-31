@@ -97,7 +97,7 @@ module.exports = class MonolithWallet {
 
     //We can clear the anti-replay buffer with this contraint
     var time_delta = (Date.now() - tx.timestamp/1_000_000)
-    if (time_delta <= 60_000 && time_delta >= -60_000) {
+    if (time_delta > 60_000 || time_delta < -60_000) {
       return {error: "stale_timestamp"}
     }
 
@@ -138,7 +138,7 @@ module.exports = class MonolithWallet {
       new TextEncoder().encode(`${json.tx}${rx_json}`), globalThis.BDFL_SECRET_KEY_RAW)
     var tx_rx_signature_b58 = Util.to_b58(tx_rx_signature)
     var tx_rx = {
-      error: "ok",
+      error: result.error || "ok",
       tx: json.tx,
       tx_signature: json.tx_signature,
       rx: rx_json,
@@ -181,7 +181,7 @@ module.exports = class MonolithWallet {
       return {error: "amount_must_be_gt_0"}
     }
     if (amount > balance) {
-      return {error: "amount_must_be_lt_balance"}
+      return {error: "insufficient_funds"}
     }
 
     globalThis.state["credit"][sender] -= amount
@@ -210,7 +210,7 @@ module.exports = class MonolithWallet {
       return {error: "amount_must_be_gt_0"}
     }
     if (amount > credit_out) {
-      return {error: "amount_must_be_lt_credit_out"}
+      return {error: "amount_must_be_lte_credit_out"}
     }
 
     globalThis.state["credit"][receiver] += amount

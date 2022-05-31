@@ -274,6 +274,46 @@
       const BNDLR_HACK = `${globalThis.location.protocol}//rawcdn.githack.com/gpuedge/wallet/a6a590d3276152d1b66ec2bff4a256144210c7ee/src/html/`
 
       const PARENT = window.opener || window.parent;
+      var PARENT_HOST;
+      var PARENT_LOADED = false;
+      var PARENT_LOADED_QUEUE = [];
+      var ACCESS_GRANTED = null;
+      if (document.location.ancestorOrigins && document.location.ancestorOrigins[0]) {
+        PARENT_HOST = new URL(document.location.ancestorOrigins[0]).host
+      } else if (document.referrer) {
+        PARENT_HOST = new URL(document.referrer).host
+      }
+
+      ACCESS_GRANTED = localStorage.getItem(`access_host:${PARENT_HOST}`);
+      if (PARENT_HOST && PARENT_HOST.endsWith("gpux.ai")) {
+        ACCESS_GRANTED = true;
+      }
+
+      window.addEventListener("message",
+        function(e) {
+          if (!(typeof e.data === 'object' && e.data !== null)) {
+            return
+          }
+
+          var json = e.data
+          if (json.opcode == "loaded") {
+            PARENT_LOADED = true;
+            PARENT_LOADED_QUEUE.map(msg=> PARENT.postMessage(msg, "*"))
+            PARENT_LOADED_QUEUE = []
+          }
+        }
+      )
+
+      async function send_to_parent(msg, need_access) {
+        if (!ACCESS_GRANTED && need_access != "no") {
+          return false;
+        }
+        if (!PARENT_LOADED) {
+          PARENT_LOADED_QUEUE.push(msg)
+          return false;
+        }
+        PARENT.postMessage(msg, "*")
+      }
 
       async function api_balance(pub_b58) {
         var reply = await fetch("/api/wallet/balance", {
@@ -282,7 +322,7 @@
           body: JSON.stringify({public_key: pub_b58 || globalState.pub_b58}),
         })
         var {credit, earned} = await reply.json()
-        PARENT.postMessage({opcode: "balance", credit: credit, earned: earned}, "*")
+        send_to_parent({opcode: "balance", credit: credit, earned: earned})
         return {credit, earned}
       }
 
@@ -978,7 +1018,7 @@
       function WizardConfirmTx({tx, extra}) {
         const fn_cancel = function(e) {
           e.preventDefault();
-          PARENT.postMessage({opcode: "wallet_popup_closed", rpcid: extra.rpcid}, "*")
+          send_to_parent({opcode: "wallet_popup_closed", rpcid: extra.rpcid})
           window.close()
           return false;
         }
@@ -998,7 +1038,7 @@
 
           var full_tx = {tx: json, tx_signature: to_b58(tx_signature)}
 
-          PARENT.postMessage({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx}, "*")
+          send_to_parent({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx})
           window.close()
           return false;
         }
@@ -1036,18 +1076,68 @@
         `
       }
 
+      function WizardConfirmAccess({host, rpcid}) {
+        const fn_cancel = function(e) {
+          e.preventDefault();
+          send_to_parent({opcode: "wallet_popup_closed", rpcid: rpcid})
+          window.close()
+          return false;
+        }
+
+        const fn_approve = function(e) {
+          e.preventDefault();
+          localStorage.setItem(`access_host:${host}`, "true")
+          send_to_parent({opcode: "access", access: "full", rpcid: rpcid})
+          window.close()
+          return false;
+        }
+
+        var note = `You are connecting to ${host}. They can see your balance and public key.`
+
+        return html`
+        <div class="wrapper-inline">
+          <main class="no-header wizard-page">
+            <div class="wizard">
+              <div class="wizard-item">
+                <div class="wizard-content">
+                  <div class="form-divider"></div>
+                  <img src="${BNDLR_HACK}img/content/onboard1.png" alt="" width="220" />
+                  <div class="form-mini-divider"></div>
+                  <h3 class="onboard">Connect</h3>
+                  <p>${note}</p>
+                  <div>
+                    <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_approve(e)}>
+                      Connect
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <a class="wizard-skip-link" href="/cancel" onClick=${e=> fn_cancel(e)}>CANCEL</a>
+          </main>
+        </div>
+        `
+      }
+
       function Index() {
         const [s, hook_setGlobalState0] = useState(buildInitialState());
         wireUpGlobalState(s, hook_setGlobalState0);
 
         var isTxWizard = false;
+        var isAccessWizard = false;
         var tx = {};
         var extra = {};
+        var rpcid;
         if (globalThis.location.hash.length > 0) {
-          isTxWizard = true;
           var json = JSON.parse(new TextDecoder().decode(from_b58(globalThis.location.hash.replace("#", ""))))
-          tx = json.tx
-          extra = json.extra
+          if (json.opcode == "access") {
+            isAccessWizard = true;
+            rpcid = json.rpcid
+          } else {
+            isTxWizard = true;
+            tx = json.tx
+            extra = json.extra
+          }
         }
 
         return html`
@@ -1057,7 +1147,10 @@
             ? html`<${WizardNewUser} />` 
             : isTxWizard ?
                 html`<${WizardConfirmTx} tx=${tx} extra=${extra} />`
-              : html`<${WalletDashboard2} />`
+              : isAccessWizard ?
+                  html`<${WizardConfirmAccess} host=${PARENT_HOST} rpcid=${rpcid} />`
+                :
+                  html`<${WalletDashboard2} />`
           }
         </div>
         `;
@@ -1108,6 +1201,11 @@
         var [pub_b58, sec_b58] = read_keypair()
         if (pub_b58) {
           setInitialState({pub_b58: pub_b58, sec_b58: sec_b58});
+          if (ACCESS_GRANTED) {
+            send_to_parent({opcode: "access", access: "full"})
+          } else {
+            send_to_parent({opcode: "access", access: "none"}, "no")
+          }
         }
         ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
       }
