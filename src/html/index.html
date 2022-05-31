@@ -275,7 +275,7 @@
 
       const PARENT = window.opener || window.parent;
       var PARENT_HOST;
-      var PARENT_LOADED = false;
+      var PARENT_LOADED = !!window.opener;
       var PARENT_LOADED_QUEUE = [];
       var ACCESS_GRANTED = null;
       if (document.location.ancestorOrigins && document.location.ancestorOrigins[0]) {
@@ -300,6 +300,24 @@
             PARENT_LOADED = true;
             PARENT_LOADED_QUEUE.map(msg=> PARENT.postMessage(msg, "*"))
             PARENT_LOADED_QUEUE = []
+          }
+          if (json.opcode == "sign") {
+            if (!ACCESS_GRANTED) {
+              send_to_parent({opcode: "access_denied", rpcid: json.rpcid})
+              return;
+            }
+
+            var msg = JSON.stringify({
+              opcode: "signed_message",
+              timestamp: 0,
+              payload: json.payload,
+            })
+
+            var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(globalState.sec_b58))
+            var tx_signature = nacl.sign.detached(
+              new TextEncoder().encode(msg), keyPair_ed.secretKey)
+
+            send_to_parent({opcode: "signed_message", rpcid: json.rpcid, msg: msg, public_key: globalState.pub_b58, signature: to_b58(tx_signature)})
           }
         }
       )
@@ -1037,7 +1055,6 @@
             new TextEncoder().encode(json), keyPair_ed.secretKey)
 
           var full_tx = {tx: json, tx_signature: to_b58(tx_signature)}
-
           send_to_parent({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx})
           window.close()
           return false;
@@ -1079,7 +1096,7 @@
       function WizardConfirmAccess({host, rpcid}) {
         const fn_cancel = function(e) {
           e.preventDefault();
-          send_to_parent({opcode: "wallet_popup_closed", rpcid: rpcid})
+          send_to_parent({opcode: "wallet_popup_closed", rpcid: rpcid}, "no")
           window.close()
           return false;
         }
@@ -1087,7 +1104,7 @@
         const fn_approve = function(e) {
           e.preventDefault();
           localStorage.setItem(`access_host:${host}`, "true")
-          send_to_parent({opcode: "access", access: "full", rpcid: rpcid})
+          send_to_parent({opcode: "access", access: "full", rpcid: rpcid}, "no")
           window.close()
           return false;
         }

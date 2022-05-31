@@ -202,7 +202,7 @@ module.exports = class MonolithWallet {
   refund_for_resources(sender, receiver, params) {
     var amount = params.amount
 
-    var credit_out = globalThis.state[`${receiver}_${sender}`] || 0
+    var credit_out = globalThis.state["credit_out"][`${receiver}_${sender}`] || 0
     if (!Number.isInteger(amount)) {
       return {error: "amount_must_be_integer"}
     }
