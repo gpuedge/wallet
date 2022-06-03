@@ -160,6 +160,9 @@ module.exports = class MonolithWallet {
     if (amount < 0) {
       return {error: "amount_must_be_gt_0"}
     }
+    if (sender != globalThis.BDFL_PUBLIC_KEY) {
+      return {error: "minter_must_be_bdfl"}
+    }
 
     globalThis.state["credit"][credit_receiver] = (globalThis.state["credit"][credit_receiver] || 0)
     globalThis.state["credit"][credit_receiver] += amount
