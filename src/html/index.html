@@ -261,6 +261,12 @@
         });
       }
 
+      const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      function to_b58(term) {return (typeof term === 'string' || term instanceof String) ? to_b58_1(new TextEncoder().encode(term)) : to_b58_1(term)}
+      function to_b58_1(B,A){if(!A){A=MAP};var d=[],s="",i,j,c,n;for(i in B){j=0,c=B[i];s+=c||s.length^i?"":1;while(j in d||c){n=d[j];n=n?n*256+c:c;c=n/58|0;d[j]=n%58;j++}}while(j--)s+=A[d[j]];return s};
+      function from_b58(term) {return from_b58_1(term)}
+      function from_b58_1(S,A){if(!A){A=MAP};var d=[],b=[],i,j,c,n;for(i in S){j=0,c=A.indexOf(S[i]);if(c<0)return undefined;c||b.length^i?i:b.push(0);while(j in d||c){n=d[j];n=n?n*58+c:c;c=n>>8;d[j]=n%256;j++}}while(j--)b.push(d[j]);return new Uint8Array(b)};
+
       const { createElement, useState, useEffect, useRef } = React;
       const html = htm.bind(createElement);
 
@@ -275,13 +281,15 @@
 
       const PARENT = window.opener || window.parent;
       var PARENT_HOST;
+      var PARENT_HOST_ORIGIN;
       var PARENT_LOADED = !!window.opener;
-      var PARENT_LOADED_QUEUE = [];
       var ACCESS_GRANTED = null;
       if (document.location.ancestorOrigins && document.location.ancestorOrigins[0]) {
         PARENT_HOST = new URL(document.location.ancestorOrigins[0]).host
+        PARENT_HOST_ORIGIN = new URL(document.location.ancestorOrigins[0]).origin
       } else if (document.referrer) {
         PARENT_HOST = new URL(document.referrer).host
+        PARENT_HOST_ORIGIN = new URL(document.referrer).origin
       }
 
       ACCESS_GRANTED = localStorage.getItem(`access_host:${PARENT_HOST}`);
@@ -289,48 +297,15 @@
         ACCESS_GRANTED = true;
       }
 
-      window.addEventListener("message",
-        function(e) {
-          if (!(typeof e.data === 'object' && e.data !== null)) {
-            return
-          }
-
-          var json = e.data
-          if (json.opcode == "loaded") {
-            PARENT_LOADED = true;
-            PARENT_LOADED_QUEUE.map(msg=> PARENT.postMessage(msg, "*"))
-            PARENT_LOADED_QUEUE = []
-          }
-          if (json.opcode == "sign") {
-            if (!ACCESS_GRANTED) {
-              send_to_parent({opcode: "access_denied", rpcid: json.rpcid})
-              return;
-            }
-
-            var msg = JSON.stringify({
-              opcode: "signed_message",
-              timestamp: 0,
-              payload: json.payload,
-            })
-
-            var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(globalState.sec_b58))
-            var tx_signature = nacl.sign.detached(
-              new TextEncoder().encode(msg), keyPair_ed.secretKey)
-
-            send_to_parent({opcode: "signed_message", rpcid: json.rpcid, msg: msg, public_key: globalState.pub_b58, signature: to_b58(tx_signature)})
-          }
+      var wizardExtra;
+      if (globalThis.location.hash.length > 0) {
+        var json = JSON.parse(new TextDecoder().decode(from_b58(globalThis.location.hash.replace("#", ""))))
+        if (json.opcode == "access_wizard") {
+          wizardExtra = json;
         }
-      )
-
-      async function send_to_parent(msg, need_access) {
-        if (!ACCESS_GRANTED && need_access != "no") {
-          return false;
+        if (json.opcode == "pay_for_resources_wizard") {
+          wizardExtra = json;
         }
-        if (!PARENT_LOADED) {
-          PARENT_LOADED_QUEUE.push(msg)
-          return false;
-        }
-        PARENT.postMessage(msg, "*")
       }
 
       async function api_balance(pub_b58) {
@@ -340,7 +315,10 @@
           body: JSON.stringify({public_key: pub_b58 || globalState.pub_b58}),
         })
         var {credit, earned} = await reply.json()
-        send_to_parent({opcode: "balance", credit: credit, earned: earned})
+        setGlobalState({remote: {credit, earned}})
+        if (ACCESS_GRANTED) {
+          PARENT.postMessage({opcode: "balance", credit: credit, earned: earned}, PARENT_HOST_ORIGIN)
+        }
         return {credit, earned}
       }
 
@@ -659,13 +637,6 @@
           setGlobalState({dashboard: {buy_credits_step: 2, buy_amount: amount}});
           return false;
         }
-
-        useEffect(async () => {
-          //PARENT.postMessage(JSON.stringify({opcode: "public_key", public_key: globalState.pub_b58}), "*")
-          var balance = await api_balance()
-          setGlobalState({remote: balance})
-          setTimeout(async e=> setGlobalState({remote: await api_balance()}), 300)
-        }, []);
 
         return html`
         <div class="wrapper-inline">
@@ -1033,18 +1004,18 @@
         `
       }
 
-      function WizardConfirmTx({tx, extra}) {
+      function WizardConfirmTx({extra}) {
         const fn_cancel = function(e) {
           e.preventDefault();
-          send_to_parent({opcode: "wallet_popup_closed", rpcid: extra.rpcid})
+          PARENT.postMessage({opcode: "wallet_popup_closed", rpcid: extra.rpcid}, PARENT_HOST_ORIGIN)
           window.close()
           return false;
         }
 
-        const fn_approve = function(e, tx) {
+        const fn_approve = function(e) {
           e.preventDefault();
           var tx = {
-            ...tx,
+            ...extra.tx,
             sender: globalState.pub_b58,
             timestamp: Date.now()*1_000*1_000,
           }
@@ -1055,15 +1026,15 @@
             new TextEncoder().encode(json), keyPair_ed.secretKey)
 
           var full_tx = {tx: json, tx_signature: to_b58(tx_signature)}
-          send_to_parent({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx})
+          PARENT.postMessage({opcode: "signed_tx", rpcid: extra.rpcid, tx: full_tx}, PARENT_HOST_ORIGIN)
           window.close()
           return false;
         }
 
         var note = "Default note, tx not recognized."
         var note1 = null;
-        if (tx && tx.opcode == "pay_for_resources") {
-          note = `You are depositing ${format_8(tx.params.amount)} credits for up to ${extra.duration} hours.`;
+        if (extra.tx && extra.tx.opcode == "pay_for_resources") {
+          note = `You are depositing ${format_8(extra.tx.params.amount)} credits for up to ${extra.duration} hours.`;
           note1 = `(Unused credits will be refunded)`
         }
 
@@ -1080,7 +1051,7 @@
                   <p>${note}</p>
                   ${note1 ? html`<p>${note1}</p>` : null}
                   <div>
-                    <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_approve(e, tx)}>
+                    <a href="/initialize_wallet" class="more-btn" onClick=${e=> fn_approve(e)}>
                       Approve
                     </a>
                   </div>
@@ -1093,10 +1064,10 @@
         `
       }
 
-      function WizardConfirmAccess({host, rpcid}) {
+      function WizardConfirmAccess({host, extra}) {
         const fn_cancel = function(e) {
           e.preventDefault();
-          send_to_parent({opcode: "wallet_popup_closed", rpcid: rpcid}, "no")
+          PARENT.postMessage({opcode: "wallet_popup_closed", rpcid: extra.rpcid}, PARENT_HOST_ORIGIN)
           window.close()
           return false;
         }
@@ -1104,7 +1075,7 @@
         const fn_approve = function(e) {
           e.preventDefault();
           localStorage.setItem(`access_host:${host}`, "true")
-          send_to_parent({opcode: "access", access: "full", rpcid: rpcid}, "no")
+          PARENT.postMessage({opcode: "access", access: "full", rpcid: extra.rpcid}, PARENT_HOST_ORIGIN)
           window.close()
           return false;
         }
@@ -1136,48 +1107,76 @@
         `
       }
 
-      function Index() {
+      function hook_up_message_handler() {
+        window.addEventListener("message",
+          function(e) {
+            if (!(typeof e.data === 'object' && e.data !== null)) {
+              return
+            }
+
+            var json = e.data
+            if (json.opcode == "loaded_parent") {
+              if (PARENT_LOADED) {
+                return;
+              }
+              PARENT_LOADED = true;
+              PARENT.postMessage({opcode: "access", access: ACCESS_GRANTED ? "full" : "none"}, PARENT_HOST_ORIGIN)
+              api_balance()
+            }
+            if (json.opcode == "sign") {
+              if (!ACCESS_GRANTED) {
+                PARENT.postMessage({opcode: "access_denied", rpcid: json.rpcid}, PARENT_HOST_ORIGIN)
+                return;
+              }
+
+              var msg = JSON.stringify({
+                opcode: "signed_message",
+                timestamp: 0,
+                payload: json.payload,
+              })
+
+              var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(globalState.sec_b58))
+              var tx_signature = nacl.sign.detached(
+                new TextEncoder().encode(msg), keyPair_ed.secretKey)
+
+              PARENT.postMessage({opcode: "signed_message", rpcid: json.rpcid, msg: msg, public_key: globalState.pub_b58, signature: to_b58(tx_signature)}, PARENT_HOST_ORIGIN)
+            }
+          }
+        )
+      }
+
+      function Entrypoint() {
         const [s, hook_setGlobalState0] = useState(buildInitialState());
         wireUpGlobalState(s, hook_setGlobalState0);
 
-        var isTxWizard = false;
-        var isAccessWizard = false;
-        var tx = {};
-        var extra = {};
-        var rpcid;
-        if (globalThis.location.hash.length > 0) {
-          var json = JSON.parse(new TextDecoder().decode(from_b58(globalThis.location.hash.replace("#", ""))))
-          if (json.opcode == "access") {
-            isAccessWizard = true;
-            rpcid = json.rpcid
-          } else {
-            isTxWizard = true;
-            tx = json.tx
-            extra = json.extra
+        useEffect(e=> {
+          if (!!s.pub_b58 && !wizardExtra && PARENT_HOST != "gpux.ai" && PARENT_HOST != "wallet.gpux.ai") {
+            hook_up_message_handler();
           }
-        }
+          if (!!s.pub_b58) {
+            api_balance()
+          }
+        }, [])
 
+        return html`<${Index} />`
+      }
+
+      function Index() {
         return html`
         <div class="wrapper">
           <${MenuSide} />
           ${!globalState.pub_b58
             ? html`<${WizardNewUser} />` 
-            : isTxWizard ?
-                html`<${WizardConfirmTx} tx=${tx} extra=${extra} />`
-              : isAccessWizard ?
-                  html`<${WizardConfirmAccess} host=${PARENT_HOST} rpcid=${rpcid} />`
+            : wizardExtra && wizardExtra.opcode == "pay_for_resources_wizard" ?
+                html`<${WizardConfirmTx} extra=${wizardExtra} />`
+              : wizardExtra && wizardExtra.opcode == "access_wizard" ?
+                  html`<${WizardConfirmAccess} host=${PARENT_HOST} extra=${wizardExtra} />`
                 :
                   html`<${WalletDashboard2} />`
           }
         </div>
         `;
       }
-
-      const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-      function to_b58(term) {return (typeof term === 'string' || term instanceof String) ? to_b58_1(new TextEncoder().encode(term)) : to_b58_1(term)}
-      function to_b58_1(B,A){if(!A){A=MAP};var d=[],s="",i,j,c,n;for(i in B){j=0,c=B[i];s+=c||s.length^i?"":1;while(j in d||c){n=d[j];n=n?n*256+c:c;c=n/58|0;d[j]=n%58;j++}}while(j--)s+=A[d[j]];return s};
-      function from_b58(term) {return from_b58_1(term)}
-      function from_b58_1(S,A){if(!A){A=MAP};var d=[],b=[],i,j,c,n;for(i in S){j=0,c=A.indexOf(S[i]);if(c<0)return undefined;c||b.length^i?i:b.push(0);while(j in d||c){n=d[j];n=n?n*58+c:c;c=n>>8;d[j]=n%256;j++}}while(j--)b.push(d[j]);return new Uint8Array(b)};
 
       function generate_random_keypair() {
         var sign_keypair = nacl.sign.keyPair();
@@ -1214,19 +1213,11 @@
         }
       }
 
-      async function load() {
-        var [pub_b58, sec_b58] = read_keypair()
-        if (pub_b58) {
-          setInitialState({pub_b58: pub_b58, sec_b58: sec_b58});
-          if (ACCESS_GRANTED) {
-            send_to_parent({opcode: "access", access: "full"})
-          } else {
-            send_to_parent({opcode: "access", access: "none"}, "no")
-          }
-        }
-        ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
+      var [pub_b58, sec_b58] = read_keypair()
+      if (pub_b58) {
+        setInitialState({pub_b58: pub_b58, sec_b58: sec_b58});
       }
-      load();
+      ReactDOM.render(html`<${Entrypoint}/>`, document.getElementById("app"));
 
     </script>
   </body>

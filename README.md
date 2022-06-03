@@ -13,3 +13,5 @@ Visit https://wallet.gpux.ai/
 
  - [ ] Cloudflare can step in as the BDFL
  - [ ] COW for cloudflare storage (so we can snapshot state transitions and rollback easy)
+ - [ ] Rewrite channel/sync logic (especially iframe communication) using Actor model
+ - [ ] Possibly add WebSocket (maybe wait for CF PubSub) to have realtime balance updates
