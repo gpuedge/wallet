@@ -1,6 +1,8 @@
 # wallet
 Settlement mechanism
 
+![image](https://user-images.githubusercontent.com/3028982/171912217-7e918734-9aea-422b-8686-b2ee9f21d3e3.png)
+
 ## How do I create my wallet?
 Visit https://wallet.gpux.ai/
 
@@ -8,6 +10,7 @@ Visit https://wallet.gpux.ai/
 
  - Wallet is a distributed ledger governed by a BDFL (like many blockchains today)
  - There are no blocks
+ - Strict rules governing liquidity
 
 ## How can wallet be improved?
 
