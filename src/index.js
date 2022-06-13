@@ -6,6 +6,8 @@ exports.MonolithWallet = MonolithWallet
 exports.DOEmail = DOEmail
 
 const Stripe = require('./stripe.js')
+const Util = require('./util.js')
+const nacl = require('tweetnacl');
 
 import index_bin from './html/index.html'
 
@@ -101,6 +103,40 @@ exports.handlers = {
         }
         if (url.pathname == "/api/email/login") {
           return await handleRequestEmail(request, env)
+        }
+        if (url.pathname == "/api/node/list") {
+          const keys = (await env.NODELIST.list()).keys;
+          const nodes = [];
+          for (var x = 0; x<keys.length; x++) {
+            const {name} = keys[x]
+            const node = await env.NODELIST.get(name, {type: "json", cacheTtl: 300})
+            nodes.push(node)
+          }
+          return new Response(JSON.stringify({error: "ok", nodes: nodes}))
+        }
+        if (url.pathname == "/api/node/ping") {
+          var json = await request.json()
+          var ping_encoded = new TextEncoder().encode(json.json)
+          var ping_signature = Util.from_b58(json.signature)
+          var ping = JSON.parse(json.json)
+          var ping_public_key = Util.from_b58(ping.farmer)
+
+          //verify tx signature
+          var valid = nacl.sign.detached.verify(
+            ping_encoded, ping_signature, ping_public_key)
+          if (!valid) {
+            return new Response(JSON.stringify({error: "invalid_signature"}))
+          }
+
+          //Check stale
+          var time_delta = ((Date.now()/1000) - ping.timestamp)
+          if (time_delta > 60 || time_delta < -60) {
+            return new Response(JSON.stringify({error: "stale_timestamp"}))
+          }
+
+          env.NODELIST.put(ping.identity, JSON.stringify(ping), {expirationTtl: 300})
+
+          return new Response(JSON.stringify({error: "ok"}))
         }
       }
       return new Response("", {status: 404, headers: {"Content-Type": "text/html"}})

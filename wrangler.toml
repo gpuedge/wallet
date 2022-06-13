@@ -5,6 +5,9 @@ account_id = "20bf2f5d11d26a322e389687896a6601"
 workers_dev = true
 route = "wallet.gpux.ai/*"
 zone_id = "30d2c0e577ab1d6a06d0730381197d20"
+kv_namespaces = [
+  { binding = "NODELIST", id = "ade1c40d643f461287c3e44d72c4f600" }
+]
 
 [build]
 command = "npm install && npm run build"
