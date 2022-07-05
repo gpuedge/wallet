@@ -306,6 +306,9 @@
         if (json.opcode == "pay_for_resources_wizard") {
           wizardExtra = json;
         }
+        if (json.opcode == "headless") {
+          wizardExtra = json;
+        }
       }
 
       async function api_balance(pub_b58) {
@@ -1141,6 +1144,28 @@
 
               PARENT.postMessage({opcode: "signed_message", rpcid: json.rpcid, msg: msg, public_key: globalState.pub_b58, signature: to_b58(tx_signature)}, PARENT_HOST_ORIGIN)
             }
+            if (json.opcode == "token") {
+              if (!ACCESS_GRANTED) {
+                PARENT.postMessage({opcode: "access_denied", rpcid: json.rpcid}, PARENT_HOST_ORIGIN)
+                return;
+              }
+
+              var msg = JSON.stringify({
+                for_identity: json.for_identity,
+                signer: globalState.pub_b58,
+                epoch: Math.trunc(Date.now()/1000),
+                flags: json.flags || {},
+              })
+
+              var keyPair_ed = nacl.sign.keyPair.fromSeed(from_b58(globalState.sec_b58))
+              var tx_signature = nacl.sign.detached(
+                new TextEncoder().encode(msg), keyPair_ed.secretKey)
+
+              var part = new Uint8Array([...(new TextEncoder().encode(`${msg}.`)), ...tx_signature])
+              var token = to_b58(part)
+
+              PARENT.postMessage({opcode: "token_reply", rpcid: json.rpcid, token: token}, PARENT_HOST_ORIGIN)
+            }
           }
         )
       }
@@ -1150,7 +1175,7 @@
         wireUpGlobalState(s, hook_setGlobalState0);
 
         useEffect(e=> {
-          if (!!s.pub_b58 && !wizardExtra && PARENT_HOST != "gpux.ai" && PARENT_HOST != "wallet.gpux.ai") {
+          if (!!s.pub_b58 && (!wizardExtra || wizardExtra.opcode == "headless") && PARENT_HOST != "gpux.ai" && PARENT_HOST != "wallet.gpux.ai") {
             hook_up_message_handler();
           }
           if (!!s.pub_b58) {
@@ -1162,6 +1187,12 @@
       }
 
       function Index() {
+        if (wizardExtra && wizardExtra.opcode == "headless") {
+          return html`
+          <div class="wrapper">
+          </div>
+          `
+        }
         return html`
         <div class="wrapper">
           <${MenuSide} />

@@ -63,8 +63,20 @@ exports.handlers = {
   async fetch(request, env) {
     globalThis.env = env;
     try {
-      if (request.method === "OPTIONS") {
+      const url = new URL(request.url);
+      if (request.method === "OPTIONS" || request.method === "HEAD") {
         return handleOptions(request);
+      }
+
+      if (url.pathname == "/api/node/list") {
+        const keys = (await env.NODELIST.list()).keys;
+        const nodes = [];
+        for (var x = 0; x<keys.length; x++) {
+          const {name} = keys[x]
+          const node = await env.NODELIST.get(name, {type: "json", cacheTtl: 300})
+          nodes.push(node)
+        }
+        return new Response(JSON.stringify({error: "ok", nodes: nodes}))
       }
 
       if (request.method === "GET") {
@@ -72,7 +84,6 @@ exports.handlers = {
       }
 
       if (request.method === "POST") {
-        const url = new URL(request.url);
         if (url.pathname == "/api/stripe/create-payment-intent") {
           var json = await request.json()
           var reply = await Stripe.create_payment_intent(json.public_key, json.amount);
@@ -103,16 +114,6 @@ exports.handlers = {
         }
         if (url.pathname == "/api/email/login") {
           return await handleRequestEmail(request, env)
-        }
-        if (url.pathname == "/api/node/list") {
-          const keys = (await env.NODELIST.list()).keys;
-          const nodes = [];
-          for (var x = 0; x<keys.length; x++) {
-            const {name} = keys[x]
-            const node = await env.NODELIST.get(name, {type: "json", cacheTtl: 300})
-            nodes.push(node)
-          }
-          return new Response(JSON.stringify({error: "ok", nodes: nodes}))
         }
         if (url.pathname == "/api/node/ping") {
           var json = await request.json()
